@@ -1,26 +1,248 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Zeybek İnşaat — tasarım sistemi
+   Palet, şantiye ve bitmiş yapı malzemelerinden türetildi:
+   kurşuni beton, ham sıva, tunç detay, iskele filesi yeşili.
+   ============================================================ */
+
+@theme {
+  /* Kurşun — koyu zemin: üst bar, navigasyon, footer */
+  --color-kursun-900: #101A22;
+  --color-kursun-800: #15202a;
+  --color-kursun-700: #1e2d3a;
+  --color-kursun-600: #2c3e4d;
+  --color-kursun-500: #46596a;
+  --color-kursun-400: #6b7d8c;
+
+  /* Beton — ham sıva/beton yüzey: bölüm zeminleri */
+  --color-beton-100: #f2f0ec;
+  --color-beton-200: #e3e0da;
+  --color-beton-300: #d3cfc6;
+  --color-beton-400: #b6b1a6;
+
+  /* Kâğıt — sayfa zemini */
+  --color-kagit: #fbfaf8;
+
+  /* Tunç — tek vurgu rengi: eylem, kural çizgisi, üst başlık */
+  --color-tuc-600: #8d5c33;
+  --color-tuc-500: #a9703f;
+  --color-tuc-400: #c08b57;
+  --color-tuc-200: #e6cdb4;
+
+  /* File — iskele güvenlik filesi yeşili. YALNIZCA ilerleme göstergelerinde. */
+  --color-file-700: #3c6650;
+  --color-file-600: #4b7f63;
+  --color-file-400: #7aa88e;
+  --color-file-200: #cfe0d6;
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* Tam genişlik, yoğun yerleşim — kenar boşluğu akışkan */
+  --spacing-container-max: 2000px;
+  --spacing-margin: clamp(20px, 3vw, 72px);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ---------- taban ---------- */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-kagit);
+  color: var(--color-kursun-800);
+  font-family: var(--font-sans);
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-tuc-500);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-tuc-500);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+/* ---------- yerleşim ---------- */
+
+.shell {
+  width: 100%;
+  max-width: var(--spacing-container-max);
+  margin-inline: auto;
+  padding-inline: var(--spacing-margin);
+}
+
+/* Kenardan taşan karusel: sol hizayı korur, sağdan ekran dışına akar */
+.shell-bleed-right {
+  width: 100%;
+  max-width: var(--spacing-container-max);
+  margin-inline: auto;
+  padding-left: var(--spacing-margin);
+  padding-right: 0;
+}
+
+/* ---------- tipografi ---------- */
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variation-settings: "SOFT" 0, "WONK" 0, "opsz" 96;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+/* Vurgu kelimesi — italik, hafif "wonk" ile karakterli */
+.display em {
+  font-style: italic;
+  font-variation-settings: "SOFT" 8, "WONK" 1, "opsz" 96;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: clamp(0.625rem, 0.72vw, 0.75rem);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.prose-tr p {
+  max-width: 68ch;
+  line-height: 1.65;
+}
+.prose-tr p + p {
+  margin-top: 1em;
+}
+
+/* ---------- eylemler ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 0.9375rem 1.75rem;
+  border: 1px solid transparent;
+  transition: background-color 180ms ease, color 180ms ease,
+    border-color 180ms ease;
+}
+
+.btn-ghost {
+  border-color: rgb(255 255 255 / 0.55);
+  color: #fff;
+}
+.btn-ghost:hover {
+  background: #fff;
+  color: var(--color-kursun-800);
+  border-color: #fff;
+}
+
+.btn-outline {
+  border-color: var(--color-kursun-800);
+  color: var(--color-kursun-800);
+}
+.btn-outline:hover {
+  background: var(--color-kursun-800);
+  color: var(--color-kagit);
+}
+
+.btn-solid {
+  background: var(--color-tuc-500);
+  color: #fff;
+  border-color: var(--color-tuc-500);
+}
+.btn-solid:hover {
+  background: var(--color-tuc-600);
+  border-color: var(--color-tuc-600);
+}
+
+/* ---------- imza: kat takip elemanı ---------- */
+
+/* Devam eden katın tarama deseni — kalıp/donatı çizimi hissi */
+.hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-file-600) 0 2px,
+    transparent 2px 7px
+  );
+}
+
+/* Zemin altı: kazı tarama deseni */
+.hatch-earth {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-beton-400) 0 1px,
+    transparent 1px 6px
+  );
+}
+
+/* ---------- karusel ---------- */
+
+.rail {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
+.rail > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+/* ---------- hareket ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .rail {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
