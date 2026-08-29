@@ -1,46 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  lira,
-  liraKurus,
-  senaryoHesapla,
-  tarihKisa,
-  type Hesap,
-  type Odeme,
-} from "@/lib/hesap";
+import { lira, liraKurus, tarihKisa, type Hesap, type Odeme } from "@/lib/hesap";
+import PastaGrafik from "./pasta-grafik";
 
 type Mod = "bakiye" | "kumulatif" | "aylik";
 
 const SERI_1 = "#1b6fa8";
 const SERI_2 = "#5fc2e8";
-const SERI_3 = "#8a6bc1";
 const GECE = "#051c2c";
 const GRI = "#8a98a5";
 
 const MODLAR: { k: Mod; ad: string; alt: string }[] = [
-  {
-    k: "bakiye",
-    ad: "Bakiye",
-    alt: "Kalan borcun aylara göre azalışı — 18 taksitte sıfırlanır",
-  },
-  {
-    k: "kumulatif",
-    ad: "Kümülatif",
-    alt: "Bugüne kadar ödenenin sözleşme bedeline oranı",
-  },
-  {
-    k: "aylik",
-    ad: "Aylık",
-    alt: "Ay bazında ödeme tutarları — peşinat ve taksitler",
-  },
+  { k: "bakiye", ad: "Bakiye", alt: "Kalan borcun aylara göre azalışı" },
+  { k: "kumulatif", ad: "Kümülatif", alt: "Ödenenin bedele oranı" },
+  { k: "aylik", ad: "Aylık", alt: "Ay bazında ödeme tutarları" },
 ];
 
-// çizim alanı
-const SOL = 70;
-const SAG = 880;
-const UST = 20;
-const TABAN = 284;
+// çizim alanı — kompakt
+const SOL = 46;
+const SAG = 452;
+const UST = 12;
+const TABAN = 166;
 
 export default function OdemePanosu({
   hesap,
@@ -54,17 +35,10 @@ export default function OdemePanosu({
   const [mod, setMod] = useState<Mod>("bakiye");
   const [uzerinde, setUzerinde] = useState<number | null>(null);
   const [sabit, setSabit] = useState<number | null>(null);
-  const [ekstra, setEkstra] = useState(0);
-
-  const senaryo = useMemo(
-    () => senaryoHesapla(hesap, ekstra),
-    [hesap, ekstra],
-  );
 
   const g = useMemo(() => {
     const N = hesap.taksitler.length;
 
-    // 0 = bugün (peşinat sonrası), 1..N = taksitler
     const noktalar = [
       {
         i: 0,
@@ -111,25 +85,19 @@ export default function OdemePanosu({
       mod === "bakiye" ? p.bakiye : mod === "kumulatif" ? p.kumulatif : p.tutar;
     const y = (v: number) => UST + (1 - v / tavan) * (TABAN - UST);
 
-    const izgara = Array.from({ length: 5 }, (_, k) => {
-      const dv = tavan * (1 - k / 4);
+    const izgara = Array.from({ length: 3 }, (_, k) => {
+      const dv = tavan * (1 - k / 2);
       return {
         y: y(dv),
         etiket:
-          dv === 0
-            ? "0"
-            : dv >= 1_000_000
-              ? `${(dv / 1_000_000).toFixed(1).replace(".", ",")}M`
-              : `${lira(dv / 1000)}B`,
+          dv === 0 ? "0" : `${(dv / 1_000_000).toFixed(1).replace(".", ",")}M`,
       };
     });
 
-    // gerçekleşen + planlanan yollar
     let gercekCizgi = "";
     let gercekAlan = "";
     let planCizgi = "";
     let planAlan = "";
-    let senaryoCizgi = "";
 
     if (alanModu) {
       const bas = mod === "bakiye" ? toplamBedel : 0;
@@ -141,17 +109,9 @@ export default function OdemePanosu({
         planCizgi += ` L ${x(k)} ${y(deger(noktalar[k - 1]))} L ${x(k)} ${y(deger(noktalar[k]))}`;
       }
       planAlan = `${planCizgi} L ${x(N)} ${TABAN} L ${x(0)} ${TABAN} Z`;
-
-      // senaryo yalnızca bakiye görünümünde ve fazla ödeme varken
-      if (mod === "bakiye" && ekstra > 0) {
-        senaryoCizgi = `M ${x(0)} ${y(senaryo.egri[0])}`;
-        for (let k = 1; k <= N; k++) {
-          senaryoCizgi += ` L ${x(k)} ${y(senaryo.egri[k - 1])} L ${x(k)} ${y(senaryo.egri[k])}`;
-        }
-      }
     }
 
-    const barW = Math.max(8, adim * 0.56);
+    const barW = Math.max(5, adim * 0.56);
     const barlar = noktalar.map((p) => {
       const yy = y(p.tutar);
       return {
@@ -165,14 +125,13 @@ export default function OdemePanosu({
     });
 
     const eksen = noktalar
-      .filter((p) => p.i % 3 === 0)
+      .filter((p) => p.i % 6 === 0)
       .map((p) => ({ x: x(p.i), ad: p.kisa }));
 
     const aktifIndex = uzerinde ?? sabit;
     const aktif = aktifIndex !== null ? noktalar[aktifIndex] : noktalar[0];
 
     return {
-      N,
       adim,
       x,
       y,
@@ -186,13 +145,10 @@ export default function OdemePanosu({
       gercekAlan,
       planCizgi,
       planAlan,
-      senaryoCizgi,
       aktifIndex,
       aktif,
-      // senaryonun sıfıra değdiği nokta
-      senaryoBitisX: x(senaryo.ayAdedi),
     };
-  }, [mod, uzerinde, sabit, ekstra, hesap, odemeler, toplamBedel, senaryo]);
+  }, [mod, uzerinde, sabit, hesap, odemeler, toplamBedel]);
 
   const altBaslik = MODLAR.find((m) => m.k === mod)!.alt;
   const imlecVar = g.aktifIndex !== null;
@@ -204,7 +160,7 @@ export default function OdemePanosu({
         <div className="olcu an" style={{ animationDelay: "80ms" }}>
           <p className="lbl">Kalan borç</p>
           <p className="num olcu-deger">{lira(hesap.kalanBorc)}</p>
-          <p style={{ fontSize: 11, marginTop: 9, color: "var(--gri-2)" }}>
+          <p className="kucuk" style={{ marginTop: 10 }}>
             ₺ · bedelin %{(100 - hesap.yuzde).toFixed(1).replace(".", ",")}&apos;i
           </p>
         </div>
@@ -216,7 +172,7 @@ export default function OdemePanosu({
           </p>
           <div
             style={{
-              marginTop: 12,
+              marginTop: 13,
               display: "flex",
               alignItems: "center",
               gap: 10,
@@ -226,7 +182,7 @@ export default function OdemePanosu({
               <div className="oran-dolu" style={{ width: `${hesap.yuzde}%` }} />
               <div className="oran-plan" style={{ left: `${hesap.yuzde}%` }} />
             </div>
-            <span className="num" style={{ fontSize: 11, color: SERI_1 }}>
+            <span className="num" style={{ fontSize: 13, color: SERI_1 }}>
               %{hesap.yuzde.toFixed(1).replace(".", ",")}
             </span>
           </div>
@@ -235,7 +191,7 @@ export default function OdemePanosu({
         <div className="olcu an" style={{ animationDelay: "200ms" }}>
           <p className="lbl">Aylık taksit</p>
           <p className="num olcu-deger">{lira(hesap.aylikTaksit)}</p>
-          <p style={{ fontSize: 11, marginTop: 9, color: "var(--gri-2)" }}>
+          <p className="kucuk" style={{ marginTop: 10 }}>
             ₺ · {hesap.kalanTaksitSayisi} taksit kaldı
           </p>
         </div>
@@ -243,13 +199,13 @@ export default function OdemePanosu({
         <div className="olcu an" style={{ animationDelay: "260ms" }}>
           <p className="lbl">Son vade</p>
           <p className="num olcu-deger">{hesap.bitisTarihi}</p>
-          <p style={{ fontSize: 11, marginTop: 9, color: "var(--gri-2)" }}>
+          <p className="kucuk" style={{ marginTop: 10 }}>
             {lira(hesap.kalanGun)} gün kaldı
           </p>
         </div>
       </div>
 
-      {/* ═══ Grafik ═══ */}
+      {/* ═══ Grafikler ═══ */}
       <section className="kart ic">
         <div
           style={{
@@ -261,10 +217,10 @@ export default function OdemePanosu({
           }}
         >
           <div>
-            <h2 className="num" style={{ fontSize: 19, letterSpacing: "0.02em" }}>
+            <h2 className="num" style={{ fontSize: 20, letterSpacing: "0.02em" }}>
               ÖDEME PROFİLİ
             </h2>
-            <p style={{ fontSize: 11, color: "var(--gri-2)", marginTop: 7 }}>
+            <p className="kucuk" style={{ marginTop: 8 }}>
               {altBaslik}
             </p>
           </div>
@@ -287,197 +243,192 @@ export default function OdemePanosu({
         <div
           style={{
             display: "flex",
-            gap: 24,
+            gap: 28,
             marginTop: 20,
-            alignItems: "stretch",
+            alignItems: "flex-start",
             flexWrap: "wrap",
           }}
         >
-          <svg
-            viewBox="0 0 900 340"
-            style={{ flexGrow: 1, minWidth: 380, height: "auto" }}
-            onMouseLeave={() => setUzerinde(null)}
-            role="img"
-            aria-label={altBaslik}
-          >
-            <defs>
-              <pattern
-                id="hesap-tarama"
-                width="6"
-                height="6"
-                patternTransform="rotate(-45)"
-                patternUnits="userSpaceOnUse"
-              >
-                <rect width="2" height="6" fill={SERI_2} opacity="0.42" />
-              </pattern>
-            </defs>
+          {/* ── zaman grafiği ── */}
+          <div style={{ flex: "1 1 380px", minWidth: 340, maxWidth: 560 }}>
+            <svg
+              viewBox="0 0 470 196"
+              style={{ width: "100%", height: "auto", display: "block" }}
+              onMouseLeave={() => setUzerinde(null)}
+              role="img"
+              aria-label={altBaslik}
+            >
+              <defs>
+                <pattern
+                  id="hesap-tarama"
+                  width="6"
+                  height="6"
+                  patternTransform="rotate(-45)"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <rect width="2" height="6" fill={SERI_2} opacity="0.42" />
+                </pattern>
+              </defs>
 
-            {g.izgara.map((k) => (
-              <g key={k.etiket}>
-                <line
-                  x1={SOL}
-                  y1={k.y}
-                  x2={SAG}
-                  y2={k.y}
-                  stroke="var(--cizgi-2)"
-                  strokeWidth={1}
-                />
+              {g.izgara.map((k) => (
+                <g key={k.etiket}>
+                  <line
+                    x1={SOL}
+                    y1={k.y}
+                    x2={SAG}
+                    y2={k.y}
+                    stroke="var(--cizgi-2)"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={SOL - 8}
+                    y={k.y + 4}
+                    textAnchor="end"
+                    fill={GRI}
+                    fontSize={11}
+                    fontFamily="inherit"
+                  >
+                    {k.etiket}
+                  </text>
+                </g>
+              ))}
+
+              {g.alanModu ? (
+                <>
+                  <path d={g.gercekAlan} fill={SERI_1} opacity={0.14} />
+                  <path d={g.planAlan} fill="url(#hesap-tarama)" />
+                  <path
+                    d={g.planCizgi}
+                    fill="none"
+                    stroke={SERI_2}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d={g.gercekCizgi}
+                    fill="none"
+                    stroke={SERI_1}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                  />
+                </>
+              ) : (
+                g.barlar.map((b) => (
+                  <rect
+                    key={b.i}
+                    x={b.x}
+                    y={b.y}
+                    width={b.w}
+                    height={b.h}
+                    fill={b.renk}
+                    rx={2}
+                  />
+                ))
+              )}
+
+              <line
+                x1={SOL}
+                y1={TABAN}
+                x2={SAG}
+                y2={TABAN}
+                stroke="var(--cizgi)"
+                strokeWidth={1}
+              />
+
+              {g.eksen.map((e) => (
                 <text
-                  x={SOL - 10}
-                  y={k.y + 3}
-                  textAnchor="end"
+                  key={e.ad}
+                  x={e.x}
+                  y={186}
+                  textAnchor="middle"
                   fill={GRI}
-                  fontSize={10}
+                  fontSize={11}
                   fontFamily="inherit"
                 >
-                  {k.etiket}
+                  {e.ad}
                 </text>
-              </g>
-            ))}
+              ))}
 
-            {g.alanModu ? (
-              <>
-                <path d={g.gercekAlan} fill={SERI_1} opacity={0.14} />
-                <path d={g.planAlan} fill="url(#hesap-tarama)" />
-                <path
-                  d={g.planCizgi}
-                  fill="none"
-                  stroke={SERI_2}
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                />
-                {g.senaryoCizgi && (
-                  <>
-                    <path
-                      d={g.senaryoCizgi}
-                      fill="none"
-                      stroke={SERI_3}
-                      strokeWidth={2.5}
-                      strokeDasharray="6 4"
-                      strokeLinejoin="round"
-                    />
-                    <circle
-                      cx={g.senaryoBitisX}
-                      cy={g.y(0)}
-                      r={5}
-                      fill="#fff"
-                      stroke={SERI_3}
-                      strokeWidth={2.5}
-                    />
-                    <text
-                      x={g.senaryoBitisX}
-                      y={g.y(0) - 14}
-                      textAnchor="middle"
-                      fill={SERI_3}
-                      fontSize={10}
-                      fontWeight={700}
-                      fontFamily="inherit"
-                    >
-                      {senaryo.bitisAyKisa}
-                    </text>
-                  </>
-                )}
-                <path
-                  d={g.gercekCizgi}
-                  fill="none"
-                  stroke={SERI_1}
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                />
-              </>
-            ) : (
-              g.barlar.map((b) => (
+              {imlecVar && (
+                <g>
+                  <line
+                    x1={g.x(g.aktif.i)}
+                    y1={UST}
+                    x2={g.x(g.aktif.i)}
+                    y2={TABAN}
+                    stroke={GECE}
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                  />
+                  <circle
+                    cx={g.x(g.aktif.i)}
+                    cy={g.y(g.deger(g.aktif))}
+                    r={4.5}
+                    fill="#fff"
+                    stroke={g.aktif.gecmis ? SERI_1 : SERI_2}
+                    strokeWidth={2.5}
+                  />
+                </g>
+              )}
+
+              {g.noktalar.map((p) => (
                 <rect
-                  key={b.i}
-                  x={b.x}
-                  y={b.y}
-                  width={b.w}
-                  height={b.h}
-                  fill={b.renk}
-                  rx={3}
+                  key={p.i}
+                  x={g.x(p.i) - g.adim / 2}
+                  y={UST}
+                  width={g.adim}
+                  height={TABAN - UST}
+                  fill="transparent"
+                  style={{ pointerEvents: "all", cursor: "crosshair" }}
+                  onMouseEnter={() => setUzerinde(p.i)}
+                  onClick={() => setSabit(sabit === p.i ? null : p.i)}
                 />
-              ))
-            )}
+              ))}
+            </svg>
 
-            <line
-              x1={SOL}
-              y1={TABAN}
-              x2={SAG}
-              y2={TABAN}
-              stroke="var(--cizgi)"
-              strokeWidth={1}
-            />
+            <div
+              style={{
+                display: "flex",
+                gap: 20,
+                marginTop: 10,
+                paddingLeft: 46,
+                flexWrap: "wrap",
+              }}
+            >
+              <Anahtar renk={SERI_1} ad="Gerçekleşen" />
+              <Anahtar tarama ad="Planlanan" />
+            </div>
+            <p className="minik" style={{ marginTop: 10, paddingLeft: 46 }}>
+              Üzerinde gezinin — panel o aya geçer. Tıklayınca sabitlenir.
+            </p>
+          </div>
 
-            {g.eksen.map((e) => (
-              <text
-                key={e.ad}
-                x={e.x}
-                y={304}
-                textAnchor="middle"
-                fill={GRI}
-                fontSize={10}
-                fontFamily="inherit"
-              >
-                {e.ad}
-              </text>
-            ))}
+          {/* ── dağılım pastası ── */}
+          <PastaGrafik
+            pesinat={hesap.pesinatOdenen}
+            taksit={hesap.taksitOdenen}
+            kalan={hesap.kalanBorc}
+            toplam={toplamBedel}
+          />
 
-            {imlecVar && (
-              <g>
-                <line
-                  x1={g.x(g.aktif.i)}
-                  y1={UST}
-                  x2={g.x(g.aktif.i)}
-                  y2={TABAN}
-                  stroke={GECE}
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                />
-                <circle
-                  cx={g.x(g.aktif.i)}
-                  cy={g.y(g.deger(g.aktif))}
-                  r={5}
-                  fill="#fff"
-                  stroke={g.aktif.gecmis ? SERI_1 : SERI_2}
-                  strokeWidth={2.5}
-                />
-              </g>
-            )}
-
-            {/* fare/dokunma yakalayıcılar */}
-            {g.noktalar.map((p) => (
-              <rect
-                key={p.i}
-                x={g.x(p.i) - g.adim / 2}
-                y={UST}
-                width={g.adim}
-                height={TABAN - UST}
-                fill="transparent"
-                style={{ pointerEvents: "all", cursor: "crosshair" }}
-                onMouseEnter={() => setUzerinde(p.i)}
-                onClick={() => setSabit(sabit === p.i ? null : p.i)}
-              />
-            ))}
-          </svg>
-
-          {/* okuma paneli */}
+          {/* ── okuma paneli ── */}
           <div
             style={{
-              width: 260,
+              width: 250,
               flexShrink: 0,
               border: "1px solid var(--cizgi)",
               background: "var(--panel)",
-              padding: 20,
+              padding: 18,
               display: "flex",
               flexDirection: "column",
-              gap: 16,
+              gap: 14,
             }}
           >
             <div>
               <p className="lbl">
                 {imlecVar && uzerinde === null ? "Sabitlendi" : g.aktif.tur}
               </p>
-              <p className="num" style={{ fontSize: 21, marginTop: 11 }}>
+              <p className="num" style={{ fontSize: 20, marginTop: 10 }}>
                 {g.aktif.uzun}
               </p>
             </div>
@@ -488,11 +439,6 @@ export default function OdemePanosu({
               { ad: "Ödeme", d: lira(g.aktif.tutar), c: GECE },
               { ad: "Kalan bakiye", d: lira(g.aktif.bakiye), c: SERI_1 },
               { ad: "Toplam ödenen", d: lira(g.aktif.kumulatif), c: GECE },
-              {
-                ad: "Tamamlanan",
-                d: `%${((g.aktif.kumulatif / toplamBedel) * 100).toFixed(1).replace(".", ",")}`,
-                c: GRI,
-              },
             ].map((s) => (
               <div
                 key={s.ad}
@@ -500,7 +446,7 @@ export default function OdemePanosu({
                   display: "flex",
                   alignItems: "baseline",
                   justifyContent: "space-between",
-                  gap: 12,
+                  gap: 10,
                 }}
               >
                 <span className="lbl" style={{ color: "var(--gri-2)" }}>
@@ -516,8 +462,8 @@ export default function OdemePanosu({
 
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <svg
-                width="16"
-                height="16"
+                width="17"
+                height="17"
                 viewBox="0 0 16 16"
                 fill="none"
                 stroke={g.aktif.gecmis ? SERI_1 : GRI}
@@ -536,183 +482,17 @@ export default function OdemePanosu({
               </svg>
               <span
                 className="num"
-                style={{ fontSize: 13, color: g.aktif.gecmis ? SERI_1 : GRI }}
+                style={{ fontSize: 14, color: g.aktif.gecmis ? SERI_1 : GRI }}
               >
                 {g.aktif.durum}
               </span>
             </div>
 
-            <p
-              style={{
-                fontSize: 11,
-                lineHeight: 1.55,
-                color: GRI,
-                marginTop: "auto",
-              }}
-            >
+            <p className="kucuk" style={{ marginTop: "auto" }}>
               {g.aktif.gecmis
                 ? "Peşinatın tamamı üç havaleyle 27 Ağustos 2026 tarihinde tamamlandı."
                 : `Vade ${g.aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
             </p>
-          </div>
-        </div>
-
-        {/* gösterge */}
-        <div
-          style={{
-            display: "flex",
-            gap: 22,
-            marginTop: 16,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          <Anahtar renk={SERI_1} ad="Gerçekleşen" />
-          <Anahtar tarama ad="Planlanan" />
-          {ekstra > 0 && mod === "bakiye" && (
-            <Anahtar renk={SERI_3} kesikli ad="Erken ödeme senaryosu" />
-          )}
-          <span style={{ fontSize: 11, color: GRI }}>
-            Grafiğin üzerinde gezinin — sağdaki panel o aya geçer. Tıklayınca
-            sabitlenir.
-          </span>
-        </div>
-      </section>
-
-      {/* ═══ Erken ödeme senaryosu ═══ */}
-      <section className="kart ic">
-        <div
-          style={{
-            display: "flex",
-            gap: 32,
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-          }}
-        >
-          <div style={{ flexGrow: 1, minWidth: 320 }}>
-            <h2 className="num" style={{ fontSize: 19, letterSpacing: "0.02em" }}>
-              ERKEN ÖDEME SENARYOSU
-            </h2>
-            <p style={{ fontSize: 11, color: "var(--gri-2)", marginTop: 7 }}>
-              Sözleşme faizsiz ve endekssiz — her fazla ödeme doğrudan süreyi
-              kısaltır.
-            </p>
-
-            <label
-              htmlFor="ekstra"
-              className="lbl"
-              style={{ display: "block", marginTop: 24 }}
-            >
-              Aylık fazla ödeme
-            </label>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                marginTop: 10,
-              }}
-            >
-              <input
-                id="ekstra"
-                className="surgu"
-                type="range"
-                min={0}
-                max={1_500_000}
-                step={25_000}
-                value={ekstra}
-                onChange={(e) => setEkstra(Number(e.target.value))}
-                style={{ flexGrow: 1 }}
-                aria-describedby="senaryo-ozet"
-              />
-              <span
-                className="num"
-                style={{
-                  fontSize: 19,
-                  color: SERI_3,
-                  width: 130,
-                  textAlign: "right",
-                }}
-              >
-                +{lira(ekstra)} ₺
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                marginTop: 14,
-                flexWrap: "wrap",
-              }}
-            >
-              {[0, 100_000, 250_000, 500_000, 1_000_000].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className="sekme"
-                  aria-pressed={ekstra === v}
-                  onClick={() => setEkstra(v)}
-                  style={{ border: "1px solid var(--cizgi)", padding: "0 14px" }}
-                >
-                  {v === 0 ? "Plan" : `+${lira(v / 1000)}B`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div
-            id="senaryo-ozet"
-            aria-live="polite"
-            style={{
-              width: 380,
-              flexShrink: 0,
-              border: `1px solid ${ekstra > 0 ? SERI_3 : "var(--cizgi)"}`,
-              background: "var(--panel)",
-              padding: 20,
-            }}
-          >
-            {ekstra === 0 ? (
-              <p style={{ fontSize: 12, lineHeight: 1.6, color: "var(--gri-2)" }}>
-                Sürgüyü kaydırın: aylık taksitin üstüne koyacağınız her tutar,
-                borcun kapanma tarihini öne çeker. Kesikli mor çizgi yeni eğriyi
-                gösterir.
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <Satir
-                  ad="Yeni aylık ödeme"
-                  deger={`${lira(senaryo.aylik)} ₺`}
-                  renk={GECE}
-                />
-                <Satir
-                  ad="Borç kapanışı"
-                  deger={senaryo.bitisAyUzun}
-                  renk={SERI_3}
-                  buyuk
-                />
-                <Satir
-                  ad="Kazanılan süre"
-                  deger={
-                    senaryo.kazanilanAy > 0
-                      ? `${senaryo.kazanilanAy} ay erken`
-                      : "değişmez"
-                  }
-                  renk={senaryo.kazanilanAy > 0 ? SERI_3 : GRI}
-                />
-                <Satir
-                  ad="Taksit sayısı"
-                  deger={`${senaryo.ayAdedi} ay`}
-                  renk={GECE}
-                />
-                <div style={{ height: 1, background: "var(--cizgi)" }} />
-                <p style={{ fontSize: 11, lineHeight: 1.55, color: GRI }}>
-                  Son ay {lira(senaryo.sonOdeme)} ₺ ödenerek borç kapanır.
-                  Toplam ödenecek tutar değişmez ({lira(hesap.kalanBorc)} ₺) —
-                  yalnızca süre kısalır.
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </section>
@@ -721,12 +501,12 @@ export default function OdemePanosu({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 460px), 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 480px), 1fr))",
           background: "var(--kagit)",
         }}
       >
         <section className="ic" style={{ borderRight: "1px solid var(--cizgi)" }}>
-          <h2 className="num" style={{ fontSize: 19, letterSpacing: "0.02em" }}>
+          <h2 className="num" style={{ fontSize: 20, letterSpacing: "0.02em" }}>
             YAPILAN ÖDEMELER
           </h2>
           <table style={{ marginTop: 18 }}>
@@ -741,28 +521,22 @@ export default function OdemePanosu({
             <tbody>
               {odemeler.map((o) => (
                 <tr key={o.referans}>
-                  <td style={{ fontSize: 12, color: "var(--gri-2)" }}>
+                  <td style={{ fontSize: 13, color: "var(--gri-2)" }}>
                     {tarihKisa(o.tarih)}
                   </td>
                   <td>
-                    <span style={{ fontSize: 13 }}>{o.alici}</span>
+                    <span style={{ fontSize: 14 }}>{o.alici}</span>
                     <span
-                      style={{
-                        display: "block",
-                        fontSize: 10,
-                        color: GRI,
-                        marginTop: 3,
-                      }}
+                      className="minik"
+                      style={{ display: "block", marginTop: 4 }}
                     >
                       {o.banka} · {o.tur === "pesinat" ? "peşinat" : "taksit"}
                     </span>
                   </td>
-                  <td className="num sag" style={{ fontSize: 15 }}>
+                  <td className="num sag" style={{ fontSize: 16 }}>
                     {lira(o.tutar)}
                   </td>
-                  <td className="sag" style={{ fontSize: 10, color: GRI }}>
-                    {o.referans}
-                  </td>
+                  <td className="sag minik">{o.referans}</td>
                 </tr>
               ))}
             </tbody>
@@ -771,23 +545,24 @@ export default function OdemePanosu({
                 <td style={{ borderBottom: 0, paddingTop: 15 }} />
                 <td
                   className="lbl"
-                  style={{
-                    borderBottom: 0,
-                    paddingTop: 15,
-                    color: GECE,
-                  }}
+                  style={{ borderBottom: 0, paddingTop: 15, color: GECE }}
                 >
                   Toplam
                 </td>
                 <td
                   className="num sag"
-                  style={{ borderBottom: 0, paddingTop: 15, fontSize: 18, color: SERI_1 }}
+                  style={{
+                    borderBottom: 0,
+                    paddingTop: 15,
+                    fontSize: 19,
+                    color: SERI_1,
+                  }}
                 >
                   {lira(hesap.toplamOdenen)}
                 </td>
                 <td
-                  className="sag"
-                  style={{ borderBottom: 0, paddingTop: 15, fontSize: 10, color: GRI }}
+                  className="sag minik"
+                  style={{ borderBottom: 0, paddingTop: 15 }}
                 >
                   {odemeler.length} dekont
                 </td>
@@ -795,13 +570,11 @@ export default function OdemePanosu({
             </tfoot>
           </table>
           <p
+            className="kucuk"
             style={{
-              fontSize: 11,
-              color: GRI,
               marginTop: 16,
               borderTop: "1px solid var(--cizgi-2)",
               paddingTop: 13,
-              lineHeight: 1.5,
             }}
           >
             Havale masrafları toplam {liraKurus(hesap.masrafToplami)} ₺ — bedele
@@ -818,10 +591,10 @@ export default function OdemePanosu({
               gap: 16,
             }}
           >
-            <h2 className="num" style={{ fontSize: 19, letterSpacing: "0.02em" }}>
+            <h2 className="num" style={{ fontSize: 20, letterSpacing: "0.02em" }}>
               TAKSİT PLANI
             </h2>
-            <span style={{ fontSize: 11, color: GRI }}>
+            <span className="minik">
               {hesap.taksitler[0].ayUzun} – {hesap.sonAy}
             </span>
           </div>
@@ -847,16 +620,12 @@ export default function OdemePanosu({
                     onMouseLeave={() => setUzerinde(null)}
                     style={{ cursor: "crosshair" }}
                   >
-                    <td style={{ fontSize: 11, color: GRI }}>
-                      {String(t.sira).padStart(2, "0")}
-                    </td>
-                    <td style={{ fontSize: 11, color: "var(--gri-2)" }}>
+                    <td className="minik">{String(t.sira).padStart(2, "0")}</td>
+                    <td style={{ fontSize: 13, color: "var(--gri-2)" }}>
                       {t.vade}
                     </td>
-                    <td className="num sag" style={{ fontSize: 11, color: GRI }}>
-                      {lira(n.bakiye)}
-                    </td>
-                    <td className="num sag" style={{ fontSize: 12 }}>
+                    <td className="num sag minik">{lira(n.bakiye)}</td>
+                    <td className="num sag" style={{ fontSize: 14 }}>
                       {lira(t.beklenen)}
                     </td>
                     <td className="lbl sag">{n.durum}</td>
@@ -879,7 +648,7 @@ export default function OdemePanosu({
             <span className="lbl" style={{ color: GECE }}>
               Plan toplamı
             </span>
-            <span className="num" style={{ fontSize: 18 }}>
+            <span className="num" style={{ fontSize: 19 }}>
               {lira(hesap.planToplami)} ₺
             </span>
           </div>
@@ -889,45 +658,13 @@ export default function OdemePanosu({
   );
 }
 
-function Satir({
-  ad,
-  deger,
-  renk,
-  buyuk,
-}: {
-  ad: string;
-  deger: string;
-  renk: string;
-  buyuk?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "baseline",
-        justifyContent: "space-between",
-        gap: 12,
-      }}
-    >
-      <span className="lbl" style={{ color: "var(--gri-2)" }}>
-        {ad}
-      </span>
-      <span className="num" style={{ fontSize: buyuk ? 22 : 15, color: renk }}>
-        {deger}
-      </span>
-    </div>
-  );
-}
-
 function Anahtar({
   renk,
   tarama,
-  kesikli,
   ad,
 }: {
   renk?: string;
   tarama?: boolean;
-  kesikli?: boolean;
   ad: string;
 }) {
   return (
@@ -935,14 +672,12 @@ function Anahtar({
       <span
         style={{
           width: 16,
-          height: 8,
+          height: 9,
           borderRadius: 2,
           display: "inline-block",
-          background: kesikli
-            ? `repeating-linear-gradient(90deg, ${renk} 0 5px, transparent 5px 8px)`
-            : tarama
-              ? "repeating-linear-gradient(-45deg, #5fc2e8 0 2px, transparent 2px 6px)"
-              : renk,
+          background: tarama
+            ? "repeating-linear-gradient(-45deg, #5fc2e8 0 2px, transparent 2px 6px)"
+            : renk,
           border: tarama ? "1px solid #5fc2e8" : undefined,
         }}
       />
