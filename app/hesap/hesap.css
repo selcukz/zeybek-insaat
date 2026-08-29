@@ -1,0 +1,256 @@
+/* ============================================================
+   /hesap — hak sahibi ödeme panosu.
+
+   Sitenin sıcak beton paletinden ayrı, bilinçli olarak kapalı bir
+   dil: lacivert mürekkep, beyaz zemin, tek ailede mavi veri renkleri
+   ve baştan sona Consolas. Her şey `.hesap` altında kapsanmıştır;
+   sitenin geri kalanına sızmaz.
+   ============================================================ */
+
+.hesap {
+  --gece: #051c2c;
+  --gece-2: #0a2c41;
+  --kagit: #ffffff;
+  --zemin: #f4f6f8;
+  --panel: #fbfcfd;
+  --cizgi: #dce3e8;
+  --cizgi-2: #eef2f5;
+  --gri: #8a98a5;
+  --gri-2: #5a6875;
+
+  /* Veri renkleri — renk körlüğü ayrımı ölçülerek seçildi */
+  --seri-1: #1b6fa8; /* gerçekleşen */
+  --seri-2: #5fc2e8; /* planlanan   */
+  --seri-3: #8a6bc1; /* senaryo     */
+  --vurgu: #f0f7fb;
+
+  background: var(--zemin);
+  color: var(--gece);
+  font-family: Consolas, "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  min-height: 100dvh;
+}
+
+.hesap a {
+  color: var(--seri-1);
+}
+.hesap a:hover {
+  color: var(--gece);
+}
+
+.hesap :focus-visible {
+  outline: 2px solid var(--seri-1);
+  outline-offset: 2px;
+}
+
+/* ---------- tipografi ---------- */
+
+.hesap .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--gri);
+}
+
+.hesap .num {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- yüzeyler ---------- */
+
+.hesap .band {
+  background: var(--gece);
+  color: #fff;
+  padding: 30px clamp(20px, 3vw, 52px) 26px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.hesap .kart {
+  background: var(--kagit);
+  border-bottom: 1px solid var(--cizgi);
+}
+
+.hesap .ic {
+  padding: 26px clamp(20px, 3vw, 52px);
+}
+
+/* ---------- ölçü şeridi ---------- */
+
+.hesap .olculer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 900px) {
+  .hesap .olculer {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.hesap .olcu {
+  padding: 24px clamp(20px, 2.4vw, 40px);
+  border-right: 1px solid var(--cizgi);
+  border-bottom: 1px solid var(--cizgi);
+}
+.hesap .olcu:last-child {
+  border-right: 0;
+}
+@media (min-width: 900px) {
+  .hesap .olcu {
+    border-bottom: 0;
+  }
+}
+.hesap .olcu-deger {
+  font-size: clamp(26px, 2.6vw, 40px);
+  margin-top: 13px;
+  line-height: 1;
+}
+
+/* ---------- görünüm seçici ---------- */
+
+.hesap .sekmeler {
+  display: flex;
+  border: 1px solid var(--cizgi);
+}
+.hesap .sekme {
+  min-height: 44px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  background: var(--kagit);
+  color: var(--gri-2);
+  border: 0;
+  border-left: 1px solid var(--cizgi);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.hesap .sekme:first-child {
+  border-left: 0;
+}
+.hesap .sekme:hover {
+  background: var(--vurgu);
+}
+.hesap .sekme[aria-pressed="true"] {
+  background: var(--gece);
+  color: #fff;
+}
+
+/* ---------- ilerleme ---------- */
+
+.hesap .oran {
+  height: 8px;
+  background: var(--cizgi-2);
+  position: relative;
+  overflow: hidden;
+}
+.hesap .oran-dolu {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: var(--seri-1);
+}
+.hesap .oran-plan {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  opacity: 0.75;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--seri-2) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+/* ---------- tablolar ---------- */
+
+.hesap table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.hesap thead th {
+  border-bottom: 1px solid var(--gece);
+  padding-bottom: 9px;
+  font-weight: 700;
+}
+.hesap tbody td {
+  border-bottom: 1px solid var(--cizgi-2);
+  padding: 13px 0;
+}
+.hesap .sag {
+  text-align: right;
+}
+.hesap tbody tr.vurgulu {
+  background: var(--vurgu);
+}
+
+/* ---------- senaryo sürgüsü ---------- */
+
+.hesap .surgu {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 30px;
+  background: transparent;
+  cursor: pointer;
+}
+.hesap .surgu::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--cizgi);
+}
+.hesap .surgu::-moz-range-track {
+  height: 4px;
+  background: var(--cizgi);
+}
+.hesap .surgu::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--seri-3);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--seri-3);
+}
+.hesap .surgu::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--seri-3);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--seri-3);
+}
+
+/* ---------- hareket ---------- */
+
+@keyframes hesap-yuksel {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hesap .an {
+  animation: hesap-yuksel 620ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hesap .an {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+}

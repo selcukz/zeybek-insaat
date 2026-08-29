@@ -220,3 +220,59 @@ export function hesapla(bugun: Date) {
     pesinatTamam: pesinatOdenen >= sozlesme.pesinat - 0.5,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Erken ödeme senaryosu                                              */
+/* ------------------------------------------------------------------ */
+
+export type Senaryo = {
+  /** Aylık taksite eklenen fazla ödeme. */
+  ekstra: number;
+  /** Yeni aylık ödeme (son ay hariç). */
+  aylik: number;
+  /** Borcun kapanacağı ay sayısı. */
+  ayAdedi: number;
+  /** Plana göre kazanılan ay. */
+  kazanilanAy: number;
+  /** Son ayda ödenecek küsurat. */
+  sonOdeme: number;
+  bitisAyUzun: string;
+  bitisAyKisa: string;
+  /** Bakiye eğrisi — taksitler[] ile aynı x ekseni, 0. eleman bugünkü bakiye. */
+  egri: number[];
+};
+
+/**
+ * Sözleşme faizsiz ve endekssiz olduğu için erken ödeme doğrudan
+ * bölme işlemidir: aylık ödeme arttıkça ay sayısı kısalır.
+ */
+export function senaryoHesapla(h: Hesap, ekstra: number): Senaryo {
+  const aylik = h.aylikTaksit + Math.max(0, ekstra);
+  const kalan = h.kalanBorc;
+
+  const tamAy = Math.floor(kalan / aylik);
+  const artik = kalan - tamAy * aylik;
+  const ayAdedi = artik > 0.5 ? tamAy + 1 : tamAy;
+  const sonOdeme = artik > 0.5 ? artik : aylik;
+
+  // Bakiye eğrisi — plan ekseni boyunca, sıfıra indikten sonra sıfırda kalır
+  const egri: number[] = [kalan];
+  for (let i = 1; i <= sozlesme.taksitSayisi; i++) {
+    egri.push(Math.max(0, kalan - aylik * i));
+  }
+
+  const ilk = h.taksitler[0];
+  const bas = new Date(ilk.ay + "T00:00:00");
+  const bitis = new Date(bas.getFullYear(), bas.getMonth() + ayAdedi - 1, 1);
+
+  return {
+    ekstra: Math.max(0, ekstra),
+    aylik,
+    ayAdedi,
+    kazanilanAy: sozlesme.taksitSayisi - ayAdedi,
+    sonOdeme,
+    bitisAyUzun: `${AYLAR[bitis.getMonth()]} ${bitis.getFullYear()}`,
+    bitisAyKisa: `${AY_KISA[bitis.getMonth()]} ${String(bitis.getFullYear()).slice(2)}`,
+    egri,
+  };
+}
