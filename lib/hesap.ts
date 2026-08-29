@@ -17,7 +17,10 @@ export const sozlesme = {
   pesinat: 2_500_000,
   taksitSayisi: 18,
 
-  /** 18 aylık süre ilk peşinat ödemesiyle başlar. */
+  /**
+   * 18 aylık süre ilk peşinat ödemesiyle başlar. Taksit vadeleri ise
+   * ayın SON günüdür (30/31; şubatlarda 28/29).
+   */
   baslangic: "2026-08-18",
 } as const;
 
@@ -112,7 +115,7 @@ export type Taksit = {
   ay: string;
   ayKisa: string;
   ayUzun: string;
-  /** Vade — sözleşme başlangıcının gün numarası. */
+  /** Vade — ayın son günü. */
   vade: string;
   beklenen: number;
   odenen: number;
@@ -129,7 +132,6 @@ export type Hesap = ReturnType<typeof hesapla>;
  */
 export function hesapla(bugun: Date) {
   const bas = new Date(sozlesme.baslangic + "T00:00:00");
-  const vadeGunu = bas.getDate();
 
   const pesinatOdenen = odemeler
     .filter((o) => o.tur === "pesinat")
@@ -162,9 +164,9 @@ export function hesapla(bugun: Date) {
       })
       .reduce((t, o) => t + o.tutar, 0);
 
-    // Ayın son gününü aşmayan vade
+    // Vade ayın son günü
     const ayinSonu = new Date(yil, ayIndex + 1, 0).getDate();
-    const vadeTarihi = new Date(yil, ayIndex, Math.min(vadeGunu, ayinSonu));
+    const vadeTarihi = new Date(yil, ayIndex, ayinSonu);
 
     let durum: TaksitDurumu;
     if (odenen >= aylikTaksit - 0.5) durum = "odendi";
@@ -176,7 +178,7 @@ export function hesapla(bugun: Date) {
       ay: `${yil}-${String(ayIndex + 1).padStart(2, "0")}-01`,
       ayKisa: `${AY_KISA[ayIndex]} ${String(yil).slice(2)}`,
       ayUzun: `${AYLAR[ayIndex]} ${yil}`,
-      vade: `${String(Math.min(vadeGunu, ayinSonu)).padStart(2, "0")}.${String(
+      vade: `${String(ayinSonu).padStart(2, "0")}.${String(
         ayIndex + 1,
       ).padStart(2, "0")}.${yil}`,
       beklenen: aylikTaksit,
@@ -187,7 +189,11 @@ export function hesapla(bugun: Date) {
   }
 
   const sonTaksit = taksitler[taksitler.length - 1];
-  const bitis = new Date(bas.getFullYear(), bas.getMonth() + sozlesme.taksitSayisi, vadeGunu);
+  const bitis = new Date(
+    bas.getFullYear(),
+    bas.getMonth() + sozlesme.taksitSayisi + 1,
+    0,
+  );
   const kalanGun = Math.max(
     0,
     Math.ceil((bitis.getTime() - bugun.getTime()) / 86_400_000),
