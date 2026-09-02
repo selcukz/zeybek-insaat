@@ -2,44 +2,38 @@
 
 import { useState } from "react";
 import { lira } from "@/lib/hesap";
+import { P, CIZGI_OLCEK, D2R, pol, rnd, yuzYuzde } from "./lieflat";
 
-/* Eliptik izdüşüm — yükseklik/genişlik oranı bakış açısını verir */
-const CX = 148;
-const CY = 104;
-const RX = 96;
-const RY = 40;
-const DERINLIK = 26;
+/**
+ * Ödemenin bileşimi — Lieflat Charts F4 "Tick Donut".
+ *
+ * Yüz kişilik oy kuyruğu bir kadrana sarılır: 1 çentik = %1, tam 100
+ * çentik. Saat 12 sıfırdır, saat yönünde okunur, her onuncu çentiğin
+ * içine bir sayaç noktası düşer.
+ *
+ * Neden 3B pastanın yerine: 3B pasta, alan algısını eğdiği için yüzdeyi
+ * açıdan okumayı güvenilmez kılıyordu — eski sürüm bunu etiketle
+ * telafi etmek zorunda kalmıştı. Çentikte okuma açıya değil sayıya
+ * bağlı: dilim gerçekten sayılabiliyor.
+ *
+ * Renk sırası açıklık merdivenidir (porcelain · "açıklık = veri"):
+ * ödenen en koyu, kalan borç en açık. Sıra, ödemenin ilerleyişini
+ * kodlar; renk tek ipucu değildir, her dilim ayrıca adıyla yazılır.
+ */
 
-const D2R = Math.PI / 180;
+const YAZI =
+  'Consolas, "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace';
+
+const CX = 150;
+const CY = 96;
+const R0 = 54; /* çentiklerin iç yarıçapı */
 
 type Dilim = {
   ad: string;
   tutar: number;
   renk: string;
-  tarama?: boolean;
 };
 
-/** Gövde duvarı için yüzey renginin koyu tonu. */
-function koyult(hex: string, k: number) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.round(((n >> 16) & 255) * k);
-  const g = Math.round(((n >> 8) & 255) * k);
-  const b = Math.round((n & 255) * k);
-  return `rgb(${r} ${g} ${b})`;
-}
-
-const nokta = (a: number, olcek = 1) => ({
-  x: CX + RX * olcek * Math.cos(a * D2R),
-  y: CY + RY * olcek * Math.sin(a * D2R),
-});
-
-/**
- * Ödemenin bileşimi: peşinat, ödenen taksitler ve kalan borç.
- * Taksit ödendikçe orta dilim büyür — bugün sıfır olduğu için gizlidir.
- *
- * Not: 3B pasta, alan algısını eğdiği için dilimler ayrıca yüzde ve
- * tutar olarak doğrudan etiketlenir; okuma renge veya açıya bırakılmaz.
- */
 export default function PastaGrafik({
   pesinat,
   taksit,
@@ -54,171 +48,187 @@ export default function PastaGrafik({
   const [vurgu, setVurgu] = useState<number | null>(null);
 
   const dilimler: Dilim[] = [
-    { ad: "Peşinat", tutar: pesinat, renk: "#1b6fa8" },
+    { ad: "Peşinat", tutar: pesinat, renk: P.HERO },
     ...(taksit > 0
-      ? [{ ad: "Ödenen taksitler", tutar: taksit, renk: "#8a6bc1" }]
+      ? [{ ad: "Ödenen taksitler", tutar: taksit, renk: P.DATA }]
       : []),
-    { ad: "Kalan borç", tutar: kalan, renk: "#5fc2e8", tarama: true },
+    { ad: "Kalan borç", tutar: kalan, renk: P.DATA2 },
   ];
 
-  // -90° tepe noktası; saat yönünde ilerler
-  let aci = -90;
+  // 1 çentik = %1 sözleşmesi ancak çentikler tam 100 tanaysa doğrudur.
+  const centikler = yuzYuzde(
+    dilimler.map((d) => d.tutar),
+    toplam,
+  );
+
+  let sayac = 0;
   const parcalar = dilimler.map((d, i) => {
-    const yay = (d.tutar / toplam) * 360;
-    const a0 = aci;
-    const a1 = aci + yay;
-    aci = a1;
-
-    const p0 = nokta(a0);
-    const p1 = nokta(a1);
-    const buyukYay = yay > 180 ? 1 : 0;
-
-    const ust = `M ${CX} ${CY} L ${p0.x} ${p0.y} A ${RX} ${RY} 0 ${buyukYay} 1 ${p1.x} ${p1.y} Z`;
-
-    // Gövde yalnızca ön yarıda görünür (sin > 0 → 0°–180°)
-    const f0 = Math.max(a0, 0);
-    const f1 = Math.min(a1, 180);
-    let duvar = "";
-    if (f1 > f0) {
-      const s = nokta(f0);
-      const e = nokta(f1);
-      const la = f1 - f0 > 180 ? 1 : 0;
-      duvar =
-        `M ${s.x} ${s.y} L ${s.x} ${s.y + DERINLIK} ` +
-        `A ${RX} ${RY} 0 ${la} 1 ${e.x} ${e.y + DERINLIK} ` +
-        `L ${e.x} ${e.y} A ${RX} ${RY} 0 ${la} 0 ${s.x} ${s.y} Z`;
-    }
-
-    const orta = (a0 + a1) / 2;
-    const etiket = nokta(orta, 1.3);
-
+    const adet = centikler[i];
+    const bas = sayac;
+    sayac += adet;
     return {
       ...d,
       i,
-      ust,
-      duvar,
-      yuzde: (d.tutar / toplam) * 100,
-      etiket,
-      saga: Math.cos(orta * D2R) >= 0,
+      adet,
+      bas,
+      yuzde: toplam > 0 ? (d.tutar / toplam) * 100 : 0,
     };
   });
 
   return (
-    <figure
-      style={{
-        width: 300,
-        flexShrink: 0,
-        margin: 0,
-      }}
-    >
+    <figure style={{ width: 300, flexShrink: 0, margin: 0 }}>
       <svg
-        viewBox="0 0 300 186"
+        viewBox="0 0 300 196"
         style={{ width: "100%", height: "auto", display: "block" }}
         role="img"
         aria-label={`Ödeme bileşimi: ${parcalar
-          .map((p) => `${p.ad} ${p.yuzde.toFixed(1)} yüzde`)
+          .map((p) => `${p.ad} yüzde ${p.yuzde.toFixed(1)}`)
           .join(", ")}`}
       >
-        <defs>
-          <pattern
-            id="pasta-tarama"
-            width="7"
-            height="7"
-            patternTransform="rotate(-45)"
-            patternUnits="userSpaceOnUse"
-          >
-            <rect width="2.5" height="7" fill="#ffffff" opacity="0.5" />
-          </pattern>
-        </defs>
-
-        {/* gövde duvarları önce — üst yüzeyler bunların üstüne oturur */}
-        {parcalar.map(
-          (p) =>
-            p.duvar && (
-              <path
-                key={`g-${p.i}`}
-                d={p.duvar}
-                fill={koyult(p.renk, vurgu === p.i ? 0.82 : 0.72)}
-              />
-            ),
-        )}
-
-        {/* üst yüzeyler */}
         {parcalar.map((p) => (
           <g
-            key={`u-${p.i}`}
+            key={`d-${p.i}`}
             onMouseEnter={() => setVurgu(p.i)}
             onMouseLeave={() => setVurgu(null)}
-            style={{
-              cursor: "default",
-              transform: vurgu === p.i ? "translateY(-4px)" : "none",
-              transition: "transform 160ms ease",
-            }}
           >
-            <path d={p.ust} fill={p.renk} />
-            {p.tarama && <path d={p.ust} fill="url(#pasta-tarama)" />}
-            <path
-              d={p.ust}
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-            />
+            {/* ── çentikler ── */}
+            {Array.from({ length: p.adet }, (_, k) => {
+              const idx = p.bas + k;
+              const a = idx * 3.6 - 90;
+              const uzunluk = 10 + rnd(idx + 1, p.i + 2) * 6;
+              const [x1, y1] = pol(CX, CY, R0, a);
+              const [x2, y2] = pol(CX, CY, R0 + uzunluk, a);
+              return (
+                <g key={k}>
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={p.renk}
+                    strokeWidth={
+                      vurgu === p.i ? 1.6 * CIZGI_OLCEK : 1 * CIZGI_OLCEK
+                    }
+                    opacity={vurgu === null || vurgu === p.i ? 1 : 0.85}
+                  />
+                  {idx % 10 === 0 &&
+                    (() => {
+                      const [dx, dy] = pol(CX, CY, R0 - 5, a);
+                      return <circle cx={dx} cy={dy} r={0.8} fill={P.FAINT} />;
+                    })()}
+                </g>
+              );
+            })}
+
+            {/* ── dilim etiketi, kesikli tüy çizgiyle bağlı ── */}
+            {p.adet > 0 &&
+              (() => {
+                const orta = (p.bas + p.adet / 2) * 3.6 - 90;
+                const [lx, ly] = pol(CX, CY, R0 + 34, orta);
+                const [gx, gy] = pol(CX, CY, R0 + 19, orta);
+                const kos = Math.cos(orta * D2R);
+                const hiza =
+                  kos > 0.3 ? "start" : kos < -0.3 ? "end" : "middle";
+                return (
+                  <>
+                    <line
+                      x1={gx}
+                      y1={gy}
+                      x2={lx}
+                      y2={ly}
+                      stroke={P.FAINT}
+                      strokeWidth={0.7 * CIZGI_OLCEK}
+                      strokeDasharray="1 3"
+                    />
+                    <text
+                      x={lx}
+                      y={ly + 3}
+                      fontSize={8.5}
+                      fontWeight={800}
+                      fill={p.renk}
+                      textAnchor={hiza}
+                      letterSpacing=".06em"
+                      style={{
+                        paintOrder: "stroke",
+                        stroke: P.HALO,
+                        strokeWidth: 3,
+                      }}
+                    >
+                      {`%${p.yuzde.toFixed(1).replace(".", ",")}`}
+                    </text>
+                  </>
+                );
+              })()}
           </g>
         ))}
 
-        {/* doğrudan etiketler — okuma açıya bırakılmaz */}
-        {parcalar.map((p) => (
-          <text
-            key={`e-${p.i}`}
-            x={p.etiket.x}
-            y={p.etiket.y}
-            textAnchor={p.saga ? "start" : "end"}
-            fill="#051c2c"
-            fontSize={14}
-            fontWeight={700}
-            fontFamily="inherit"
-          >
-            %{p.yuzde.toFixed(1).replace(".", ",")}
-          </text>
-        ))}
+        {/* ── merkez: yalnızca toplam ve birim açıklaması ── */}
+        <text
+          x={CX}
+          y={CY - 1}
+          fontSize={20}
+          fontWeight={800}
+          fill={P.TXT}
+          textAnchor="middle"
+          fontFamily={YAZI}
+        >
+          100
+        </text>
+        <text
+          x={CX}
+          y={CY + 14}
+          fontSize={7}
+          fontWeight={600}
+          fill={P.MUT}
+          textAnchor="middle"
+          letterSpacing=".1em"
+          fontFamily={YAZI}
+        >
+          ÇENTİK · BİRİ = %1
+        </text>
+
+        {/* ── birim satırı ── */}
+        <text
+          x={150}
+          y={188}
+          fontSize={7}
+          fontWeight={600}
+          fill={P.FAINT}
+          textAnchor="middle"
+          letterSpacing=".12em"
+          fontFamily={YAZI}
+        >
+          SAAT 12 SIFIRDIR · NOKTA HER ONUNCUDA · SAAT YÖNÜNDE
+        </text>
       </svg>
 
-      <figcaption
-        style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 6 }}
-      >
+      <figcaption style={{ marginTop: 12 }}>
         {parcalar.map((p) => (
           <div
-            key={p.ad}
+            key={`l-${p.i}`}
             onMouseEnter={() => setVurgu(p.i)}
             onMouseLeave={() => setVurgu(null)}
             style={{
               display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 10,
-              opacity: vurgu === null || vurgu === p.i ? 1 : 0.5,
-              transition: "opacity 140ms ease",
+              alignItems: "center",
+              gap: 8,
+              padding: "3px 0",
+              opacity: vurgu === null || vurgu === p.i ? 1 : 0.55,
             }}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span
-                style={{
-                  width: 16,
-                  height: 9,
-                  borderRadius: 2,
-                  flexShrink: 0,
-                  background: p.tarama
-                    ? "repeating-linear-gradient(-45deg, #5fc2e8 0 2px, transparent 2px 6px)"
-                    : p.renk,
-                  border: p.tarama ? "1px solid #5fc2e8" : undefined,
-                }}
-              />
-              <span className="lbl" style={{ color: "var(--gri-2)" }}>
-                {p.ad}
-              </span>
+            <span
+              aria-hidden
+              style={{
+                width: 14,
+                height: 3,
+                background: p.renk,
+                flexShrink: 0,
+              }}
+            />
+            <span className="lbl" style={{ flex: 1 }}>
+              {p.ad}
             </span>
-            <span className="num" style={{ fontSize: 14 }}>
+            <span className="num" style={{ fontSize: 13 }}>
               {lira(p.tutar)}
             </span>
           </div>

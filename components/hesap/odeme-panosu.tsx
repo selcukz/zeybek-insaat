@@ -12,6 +12,7 @@ import {
 } from "@/lib/hesap";
 import PastaGrafik from "./pasta-grafik";
 import ZamanGrafik, { type Mod } from "./zaman-grafik";
+import { P } from "./lieflat";
 
 const SERI_1 = "#1b6fa8";
 const GECE = "#051c2c";
@@ -164,8 +165,8 @@ export default function OdemePanosu({
                 flexWrap: "wrap",
               }}
             >
-              <Anahtar renk={SERI_1} ad="Gerçekleşen" />
-              <Anahtar tarama ad="Planlanan" />
+              <Anahtar renk={P.DATA} ad="Gerçekleşen" />
+              <Anahtar renk={P.DATA2} ad="Planlanan" />
             </div>
             <p className="minik" style={{ marginTop: 10, paddingLeft: 46 }}>
               Üzerinde gezinin — panel o aya geçer. Tıklayınca sabitlenir.
@@ -431,27 +432,21 @@ export default function OdemePanosu({
   );
 }
 
-function Anahtar({
-  renk,
-  tarama,
-  ad,
-}: {
-  renk?: string;
-  tarama?: boolean;
-  ad: string;
-}) {
+/**
+ * Efsane örneği, grafiğin kendi diline uyar: renkli bir kutu değil,
+ * grafikteki tüy çizginin aynısı. Planlanan ton, gerçekleşenin daha
+ * açığıdır — porcelain'de açıklık farkı verinin kendisidir.
+ */
+function Anahtar({ renk, ad }: { renk: string; ad: string }) {
   return (
     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span
+        aria-hidden
         style={{
           width: 16,
-          height: 9,
-          borderRadius: 2,
+          height: 3,
           display: "inline-block",
-          background: tarama
-            ? "repeating-linear-gradient(-45deg, #5fc2e8 0 2px, transparent 2px 6px)"
-            : renk,
-          border: tarama ? "1px solid #5fc2e8" : undefined,
+          background: renk,
         }}
       />
       <span className="lbl" style={{ color: "var(--gri-2)" }}>
