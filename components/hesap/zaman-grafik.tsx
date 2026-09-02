@@ -49,23 +49,12 @@ const SERI_1 = "#1b6fa8"; /* gerçekleşen */
 const SERI_2 = "#5fc2e8"; /* planlanan   */
 const GECE = "#051c2c";
 const GRI = "#8a98a5";
+const KAGIT = "#ffffff";
 const CIZGI = "#dce3e8";
 const CIZGI_2 = "#eef2f5";
 
 const YAZI =
   'Consolas, "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace';
-
-/**
- * Plan alanının taraması. Efsanedeki `repeating-linear-gradient(-45deg…)`
- * ile aynı yönde ("/") ve kenarlarda kesintisiz döşenir.
- */
-const TARAMA =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6">' +
-      '<path d="M0 6 L6 0 M-1 1 L1 -1 M5 7 L7 5" ' +
-      'stroke="#5fc2e8" stroke-width="2" stroke-opacity="0.42"/></svg>',
-  );
 
 function secenekUret(
   noktalar: GrafikNoktasi[],
@@ -87,6 +76,8 @@ function secenekUret(
   const seriler: Secenek["series"] = alanModu
     ? [
         {
+          // Plan alanı doldurulmaz: içi boş kesik çizgi = henüz olmadı.
+          // Pastadaki "kalan borç" dilimiyle aynı okuma.
           name: "Planlanan",
           type: "line",
           step: "end",
@@ -94,15 +85,7 @@ function secenekUret(
           z: 2,
           symbol: "none",
           data: noktalar.map((p) => (p.i >= sonGercek ? deger(p) : null)),
-          lineStyle: { color: SERI_2, width: 2 },
-          areaStyle: {
-            color: {
-              image: TARAMA,
-              repeat: "repeat",
-              imageWidth: 6,
-              imageHeight: 6,
-            },
-          },
+          lineStyle: { color: SERI_2, width: 2, type: [6, 4] },
         },
         {
           name: "Gerçekleşen",
@@ -128,12 +111,21 @@ function secenekUret(
           silent: true,
           z: 2,
           barWidth: "56%",
+          // Ödenen ay dolu; henüz gelmemiş ay içi boş kesik çizgili.
           data: noktalar.map((p) => ({
             value: p.tutar,
-            itemStyle: {
-              color: p.gecmis ? SERI_1 : SERI_2,
-              borderRadius: [2, 2, 0, 0] as [number, number, number, number],
-            },
+            itemStyle: p.gecmis
+              ? {
+                  color: SERI_1,
+                  borderRadius: [2, 2, 0, 0] as [number, number, number, number],
+                }
+              : {
+                  color: KAGIT,
+                  borderColor: SERI_2,
+                  borderWidth: 1.4,
+                  borderType: [5, 3] as [number, number],
+                  borderRadius: [2, 2, 0, 0] as [number, number, number, number],
+                },
           })),
         },
       ];

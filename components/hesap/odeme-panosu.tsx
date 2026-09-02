@@ -165,7 +165,7 @@ export default function OdemePanosu({
               }}
             >
               <Anahtar renk={SERI_1} ad="Gerçekleşen" />
-              <Anahtar tarama ad="Planlanan" />
+              <Anahtar bos ad="Planlanan" />
             </div>
             <p className="minik" style={{ marginTop: 10, paddingLeft: 46 }}>
               Üzerinde gezinin — panel o aya geçer. Tıklayınca sabitlenir.
@@ -431,13 +431,14 @@ export default function OdemePanosu({
   );
 }
 
+/** Dolu kutu = gerçekleşen. İçi boş kesik çizgili kutu = planlanan. */
 function Anahtar({
   renk,
-  tarama,
+  bos,
   ad,
 }: {
   renk?: string;
-  tarama?: boolean;
+  bos?: boolean;
   ad: string;
 }) {
   return (
@@ -448,10 +449,8 @@ function Anahtar({
           height: 9,
           borderRadius: 2,
           display: "inline-block",
-          background: tarama
-            ? "repeating-linear-gradient(-45deg, #5fc2e8 0 2px, transparent 2px 6px)"
-            : renk,
-          border: tarama ? "1px solid #5fc2e8" : undefined,
+          background: bos ? "#ffffff" : renk,
+          border: bos ? "1px dashed #5fc2e8" : undefined,
         }}
       />
       <span className="lbl" style={{ color: "var(--gri-2)" }}>

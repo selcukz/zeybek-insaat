@@ -159,16 +159,14 @@
   left: 0;
   background: var(--seri-1);
 }
+/* İçi boş kesik çizgi = henüz ödenmemiş kısım. Aynı okuma pasta ve
+   zaman grafiğinde de geçerli; sayfada tek bir "planlanan" dili var. */
 .hesap .oran-plan {
   position: absolute;
   inset-block: 0;
   right: 0;
-  opacity: 0.75;
-  background-image: repeating-linear-gradient(
-    -45deg,
-    var(--seri-2) 0 2px,
-    transparent 2px 6px
-  );
+  background: transparent;
+  border: 1px dashed var(--seri-2);
 }
 
 /* ---------- tablolar ---------- */
