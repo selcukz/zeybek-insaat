@@ -14,7 +14,7 @@ export const sozlesme = {
   hakSahibi: "Aslı Ece Zeybek",
 
   toplamBedel: 14_000_000,
-  pesinat: 2_500_000,
+  pesinat: 3_000_000,
   taksitSayisi: 18,
 
   /**
@@ -67,6 +67,15 @@ export const odemeler: Odeme[] = [
     masraf: 209.39,
     tur: "pesinat",
   },
+  {
+    tarih: "2026-09-02",
+    tutar: 500_000,
+    alici: "Zeybek İnşaat",
+    banka: "Vakıfbank",
+    referans: "…26011863",
+    masraf: 209.39,
+    tur: "pesinat",
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -81,6 +90,14 @@ const kurusla = new Intl.NumberFormat("tr-TR", {
 
 export const lira = (n: number) => tamSayi.format(Math.round(n));
 export const liraKurus = (n: number) => kurusla.format(n);
+
+const SAYI_ADI = [
+  "", "tek", "iki", "üç", "dört", "beş",
+  "altı", "yedi", "sekiz", "dokuz", "on",
+];
+
+/** Küçük sayıları yazıyla verir; sözlükte yoksa rakama düşer. */
+export const sayiAdi = (n: number) => SAYI_ADI[n] ?? String(n);
 
 const AYLAR = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
@@ -133,9 +150,14 @@ export type Hesap = ReturnType<typeof hesapla>;
 export function hesapla(bugun: Date) {
   const bas = new Date(sozlesme.baslangic + "T00:00:00");
 
-  const pesinatOdenen = odemeler
-    .filter((o) => o.tur === "pesinat")
-    .reduce((t, o) => t + o.tutar, 0);
+  const pesinatOdemeleri = odemeler.filter((o) => o.tur === "pesinat");
+  const pesinatOdenen = pesinatOdemeleri.reduce((t, o) => t + o.tutar, 0);
+
+  // Peşinatı kapatan son havale — ISO tarihler sözlüksel olarak da sıralanır.
+  const pesinatSonOdeme = pesinatOdemeleri.reduce<Odeme | undefined>(
+    (son, o) => (!son || o.tarih > son.tarih ? o : son),
+    undefined,
+  );
   const taksitOdenen = odemeler
     .filter((o) => o.tur === "taksit")
     .reduce((t, o) => t + o.tutar, 0);
@@ -224,6 +246,10 @@ export function hesapla(bugun: Date) {
     kalanGun,
     /** Peşinat tamamlandı mı? */
     pesinatTamam: pesinatOdenen >= sozlesme.pesinat - 0.5,
+    /** Peşinatı oluşturan havale adedi. */
+    pesinatAdedi: pesinatOdemeleri.length,
+    /** Peşinattaki son havalenin tarihi — uzun biçim. */
+    pesinatSonTarih: pesinatSonOdeme ? tarihUzun(pesinatSonOdeme.tarih) : "",
   };
 }
 

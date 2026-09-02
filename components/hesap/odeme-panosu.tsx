@@ -5,6 +5,7 @@ import {
   grafikNoktalari,
   lira,
   liraKurus,
+  sayiAdi,
   tarihKisa,
   type Hesap,
   type Odeme,
@@ -257,9 +258,13 @@ export default function OdemePanosu({
             </div>
 
             <p className="kucuk" style={{ marginTop: "auto" }}>
-              {aktif.gecmis
-                ? "Peşinatın tamamı üç havaleyle 27 Ağustos 2026 tarihinde tamamlandı."
-                : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
+              {aktif.i === 0
+                ? hesap.pesinatTamam
+                  ? `Peşinatın tamamı ${sayiAdi(hesap.pesinatAdedi)} havaleyle ${hesap.pesinatSonTarih} tarihinde tamamlandı.`
+                  : `Peşinat ${sayiAdi(hesap.pesinatAdedi)} havaleyle kısmen ödendi; son havale ${hesap.pesinatSonTarih}.`
+                : aktif.gecmis
+                  ? `Taksit ${aktif.i} ödendi. Vade ${aktif.vade}.`
+                  : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
             </p>
           </div>
         </div>
