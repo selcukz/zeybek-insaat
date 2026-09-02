@@ -226,3 +226,84 @@ export function hesapla(bugun: Date) {
     pesinatTamam: pesinatOdenen >= sozlesme.pesinat - 0.5,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Grafik noktaları                                                   */
+/* ------------------------------------------------------------------ */
+
+export type GrafikNoktasi = {
+  /** 0 = peşinat ayı, 1…18 = taksitler. */
+  i: number;
+  kisa: string;
+  uzun: string;
+  vade: string;
+  /** O ayki ödeme tutarı. */
+  tutar: number;
+  /** Ay sonundaki kalan bakiye. */
+  bakiye: number;
+  /** Ay sonuna kadarki kümülatif ödeme. */
+  kumulatif: number;
+  /** Gerçekleşti mi — plan eğrisi son gerçekleşen noktadan sonra başlar. */
+  gecmis: boolean;
+  tur: string;
+  durum: string;
+};
+
+const DURUM_ADI: Record<TaksitDurumu, string> = {
+  odendi: "Ödendi",
+  kismi: "Kısmi",
+  gecikti: "Gecikti",
+  bekliyor: "Bekliyor",
+};
+
+/**
+ * Zaman grafiğinin ve taksit tablosunun ortak veri kaynağı.
+ *
+ * Kümülatif eğri peşinatın üzerine planlanan taksitleri ekler. Yürüyüş
+ * `toplamOdenen`den değil `pesinatOdenen`den başlar: ödenen taksitler
+ * `toplamOdenen` içinde zaten sayılıdır, oradan yürünürse iki kez sayılır.
+ */
+export function grafikNoktalari(
+  hesap: Hesap,
+  toplamBedel: number,
+): GrafikNoktasi[] {
+  const bas = new Date(sozlesme.baslangic + "T00:00:00");
+  const sonOdeme = odemeler[odemeler.length - 1];
+
+  return [
+    {
+      i: 0,
+      kisa: `${AY_KISA[bas.getMonth()]} ${String(bas.getFullYear()).slice(2)}`,
+      uzun: `${AYLAR[bas.getMonth()]} ${bas.getFullYear()}`,
+      vade: tarihKisa(sonOdeme.tarih),
+      tutar: hesap.pesinatOdenen,
+      bakiye: toplamBedel - hesap.pesinatOdenen,
+      kumulatif: hesap.pesinatOdenen,
+      gecmis: true,
+      tur: "Peşinat",
+      durum: hesap.pesinatTamam ? "Ödendi" : "Kısmi",
+    },
+    ...hesap.taksitler.map((t) => {
+      const kum = hesap.pesinatOdenen + t.beklenen * t.sira;
+      return {
+        i: t.sira,
+        kisa: t.ayKisa,
+        uzun: t.ayUzun,
+        vade: t.vade,
+        tutar: t.beklenen,
+        bakiye: toplamBedel - kum,
+        kumulatif: kum,
+        gecmis: t.durum === "odendi",
+        tur: `Taksit ${t.sira}`,
+        durum: DURUM_ADI[t.durum],
+      };
+    }),
+  ];
+}
+
+/** Plan eğrisinin başladığı nokta — son gerçekleşen ödemenin indeksi. */
+export function sonGercekIndex(noktalar: GrafikNoktasi[]) {
+  let son = 0;
+  for (const p of noktalar) if (p.gecmis) son = p.i;
+  return son;
+}
