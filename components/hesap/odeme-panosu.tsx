@@ -17,10 +17,18 @@ const SERI_1 = "#1b6fa8";
 const GECE = "#051c2c";
 const GRI = "#8a98a5";
 
+/** Sekmeler yalnız çizgiyi değiştirir; kolonlar iki görünümde de aynı. */
 const MODLAR: { k: Mod; ad: string; alt: string }[] = [
-  { k: "bakiye", ad: "Bakiye", alt: "Kalan borcun aylara göre azalışı" },
-  { k: "kumulatif", ad: "Kümülatif", alt: "Ödenenin bedele oranı" },
-  { k: "aylik", ad: "Aylık", alt: "Ay bazında ödeme tutarları" },
+  {
+    k: "kumulatif",
+    ad: "Kümülatif",
+    alt: "Kolonlar 18 taksit · çizgi bedele tırmanan toplam (peşinat dahil)",
+  },
+  {
+    k: "bakiye",
+    ad: "Bakiye",
+    alt: "Kolonlar 18 taksit · çizgi kalan borcun aylara göre azalışı",
+  },
 ];
 
 export default function OdemePanosu({
@@ -32,7 +40,7 @@ export default function OdemePanosu({
   odemeler: Odeme[];
   toplamBedel: number;
 }) {
-  const [mod, setMod] = useState<Mod>("bakiye");
+  const [mod, setMod] = useState<Mod>("kumulatif");
   const [uzerinde, setUzerinde] = useState<number | null>(null);
   const [sabit, setSabit] = useState<number | null>(null);
 
@@ -164,8 +172,9 @@ export default function OdemePanosu({
                 flexWrap: "wrap",
               }}
             >
-              <Anahtar renk={SERI_1} ad="Gerçekleşen" />
-              <Anahtar bos ad="Planlanan" />
+              <Anahtar renk={SERI_1} ad="Ödenen" />
+              <Anahtar bos ad="Beklenen" />
+              <Anahtar cizgi ad={mod === "kumulatif" ? "Kümülatif" : "Kalan bakiye"} />
             </div>
             <p className="minik" style={{ marginTop: 10, paddingLeft: 46 }}>
               Üzerinde gezinin — panel o aya geçer. Tıklayınca sabitlenir.
@@ -205,9 +214,14 @@ export default function OdemePanosu({
             <div style={{ height: 1, background: "var(--cizgi)" }} />
 
             {[
-              { ad: "Ödeme", d: lira(aktif.tutar), c: GECE },
+              { ad: "Beklenen", d: lira(aktif.beklenen), c: GECE },
+              {
+                ad: "Ödenen",
+                d: lira(aktif.odenen),
+                c: aktif.odenen > 0 ? SERI_1 : GRI,
+              },
               { ad: "Kalan bakiye", d: lira(aktif.bakiye), c: SERI_1 },
-              { ad: "Toplam ödenen", d: lira(aktif.kumulatif), c: GECE },
+              { ad: "Kümülatif", d: lira(aktif.kumulatif), c: GECE },
             ].map((s) => (
               <div
                 key={s.ad}
@@ -431,14 +445,19 @@ export default function OdemePanosu({
   );
 }
 
-/** Dolu kutu = gerçekleşen. İçi boş kesik çizgili kutu = planlanan. */
+/**
+ * Dolu kutu = ödenen. İçi boş kesik çizgili kutu = beklenen.
+ * İnce çubuk = sağ eksendeki kümülatif çizgi.
+ */
 function Anahtar({
   renk,
   bos,
+  cizgi,
   ad,
 }: {
   renk?: string;
   bos?: boolean;
+  cizgi?: boolean;
   ad: string;
 }) {
   return (
@@ -446,11 +465,11 @@ function Anahtar({
       <span
         style={{
           width: 16,
-          height: 9,
+          height: cizgi ? 2 : 9,
           borderRadius: 2,
           display: "inline-block",
-          background: bos ? "#ffffff" : renk,
-          border: bos ? "1px dashed #5fc2e8" : undefined,
+          background: cizgi ? SERI_1 : bos ? "#f0f7fb" : renk,
+          border: bos ? "1px solid #5fc2e8" : undefined,
         }}
       />
       <span className="lbl" style={{ color: "var(--gri-2)" }}>

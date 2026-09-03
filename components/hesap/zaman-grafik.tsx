@@ -16,7 +16,15 @@ import type { ElementEvent } from "zrender";
 import { sonGercekIndex, type GrafikNoktasi } from "@/lib/hesap";
 
 /**
- * Ödeme profili — bakiye / kümülatif / aylık görünümleri.
+ * Ödeme profili — kümelenmiş kolon + çizgi (combo).
+ *
+ * Sol eksen / kolonlar (aylık ₺): her ay için sözleşmenin beklediği tutar
+ * ile fiilen ödenen tutar yan yana durur. Sağ eksen / çizgi (kümülatif ₺):
+ * bedele tırmanan eğri. Merdiven grafiği yalnız bakiyeyi gösteriyordu;
+ * bu üç okumayı (beklenen · ödenen · kümülatif) tek karede verir.
+ *
+ * Dolu = para el değiştirdi. İçi boş kesik çizgi = henüz gerçekleşmedi.
+ * Aynı okuma pastada ve ilerleme çubuğunda da geçerlidir.
  *
  * ECharts yalnızca çizim yapar; hangi ayın seçili olduğu React tarafında
  * durur, çünkü aynı seçim yandaki okuma panelini ve taksit tablosunu da
@@ -43,18 +51,26 @@ type Secenek = ComposeOption<
   | GridComponentOption
 >;
 
-export type Mod = "bakiye" | "kumulatif" | "aylik";
+/** Çizginin ne gösterdiği. Kolonlar her iki görünümde de aynıdır. */
+export type Mod = "kumulatif" | "bakiye";
 
 const SERI_1 = "#1b6fa8"; /* gerçekleşen */
 const SERI_2 = "#5fc2e8"; /* planlanan   */
 const GECE = "#051c2c";
 const GRI = "#8a98a5";
-const KAGIT = "#ffffff";
 const CIZGI = "#dce3e8";
 const CIZGI_2 = "#eef2f5";
+const KAGIT = "#ffffff";
+const VURGU = "#f0f7fb";
 
 const YAZI =
   'Consolas, "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace';
+
+const KOSE = [2, 2, 0, 0] as [number, number, number, number];
+
+/** Eksen etiketleri milyon cinsinden — panodaki bütün rakamlar gibi TR. */
+const milyon = (v: number) =>
+  v === 0 ? "0" : `${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
 
 function secenekUret(
   noktalar: GrafikNoktasi[],
@@ -62,83 +78,97 @@ function secenekUret(
   aktif: number | null,
   toplamBedel: number,
 ): Secenek {
-  const alanModu = mod !== "aylik";
-  const deger = (p: GrafikNoktasi) =>
-    mod === "bakiye" ? p.bakiye : mod === "kumulatif" ? p.kumulatif : p.tutar;
+  const cizgiDeger = (p: GrafikNoktasi) =>
+    mod === "kumulatif" ? p.kumulatif : p.bakiye;
 
-  const tavan = alanModu
-    ? toplamBedel
-    : Math.max(...noktalar.map((p) => p.tutar));
+  // Kolonlar yalnız 18 taksiti taşır. Peşinat ayı taksitin ~6 katı; aynı
+  // eksene konsaydı taksit kolonları okunmaz hale gelirdi ve kolonun boyu
+  // tutardır — eksen kırılamaz. Peşinat çizginin başlangıç yüksekliğinde
+  // ve okuma panelinde zaten duruyor.
+  const taksitler = noktalar.filter((p) => p.i > 0);
+  const enBuyukAy = Math.max(
+    ...taksitler.map((p) => Math.max(p.beklenen, p.odenen)),
+  );
+  // Tavana pay bırakılır: eşit taksitler eksene dayanırsa kolonlar
+  // parmaklık gibi görünür ve fazla/eksik ödeme farkı okunmaz olur.
+  const solTavan = Math.ceil((enBuyukAy * 1.35) / 100_000) * 100_000;
+  const kolonDegeri = (p: GrafikNoktasi, v: number) =>
+    p.i === 0 || v <= 0 ? null : v;
 
   const sonGercek = sonGercekIndex(noktalar);
   const aktifNokta = aktif === null ? null : noktalar[aktif];
 
-  const seriler: Secenek["series"] = alanModu
-    ? [
-        {
-          // Plan alanı doldurulmaz: içi boş kesik çizgi = henüz olmadı.
-          // Pastadaki "kalan borç" dilimiyle aynı okuma.
-          name: "Planlanan",
-          type: "line",
-          step: "end",
-          silent: true,
-          z: 2,
-          symbol: "none",
-          data: noktalar.map((p) => (p.i >= sonGercek ? deger(p) : null)),
-          lineStyle: { color: SERI_2, width: 2, type: [6, 4] },
-        },
-        {
-          name: "Gerçekleşen",
-          type: "line",
-          step: "end",
-          silent: true,
-          z: 3,
-          // Gerçekleşen noktalar az; her biri kaydedilmiş bir ödemedir,
-          // o yüzden nokta olarak da gösterilir.
-          symbol: "circle",
-          symbolSize: 6,
-          showSymbol: true,
-          data: noktalar.map((p) => (p.i <= sonGercek ? deger(p) : null)),
-          itemStyle: { color: SERI_1 },
-          lineStyle: { color: SERI_1, width: 2 },
-          areaStyle: { color: SERI_1, opacity: 0.14 },
-        },
-      ]
-    : [
-        {
-          name: "Aylık",
-          type: "bar",
-          silent: true,
-          z: 2,
-          barWidth: "56%",
-          // Ödenen ay dolu; henüz gelmemiş ay içi boş kesik çizgili.
-          data: noktalar.map((p) => ({
-            value: p.tutar,
-            itemStyle: p.gecmis
-              ? {
-                  color: SERI_1,
-                  borderRadius: [2, 2, 0, 0] as [number, number, number, number],
-                }
-              : {
-                  color: KAGIT,
-                  borderColor: SERI_2,
-                  borderWidth: 1.4,
-                  borderType: [5, 3] as [number, number],
-                  borderRadius: [2, 2, 0, 0] as [number, number, number, number],
-                },
-          })),
-        },
-      ];
+  const kolonlar: (BarSeriesOption | LineSeriesOption)[] = [
+    {
+      // Beklenen: açık zeminli, çerçeveli kolon — henüz gerçekleşmedi.
+      // 19 ay dar bir karta sığdığı için kolon ~9px; bu genişlikte kesik
+      // çerçeve parmaklığa dönüşüyor, o yüzden burada çizgi sürekli.
+      // Kesik çizgi dili pastada ve ilerleme çubuğunda korunuyor.
+      name: "Beklenen",
+      type: "bar",
+      silent: true,
+      z: 2,
+      yAxisIndex: 0,
+      barGap: "10%",
+      barCategoryGap: "28%",
+      data: noktalar.map((p) => kolonDegeri(p, p.beklenen)),
+      itemStyle: {
+        color: VURGU,
+        borderColor: SERI_2,
+        borderWidth: 1.2,
+        borderRadius: KOSE,
+      },
+    },
+    {
+      // Ödenen: dolu kolon. Ödeme girilmemiş ay hiç kolon çizmez.
+      name: "Ödenen",
+      type: "bar",
+      silent: true,
+      z: 3,
+      yAxisIndex: 0,
+      data: noktalar.map((p) => kolonDegeri(p, p.odenen)),
+      itemStyle: { color: SERI_1, borderRadius: KOSE },
+    },
+  ];
+
+  const cizgiler: LineSeriesOption[] = [
+    {
+      name: "Plan",
+      type: "line",
+      silent: true,
+      z: 4,
+      yAxisIndex: 1,
+      symbol: "none",
+      data: noktalar.map((p) => (p.i >= sonGercek ? cizgiDeger(p) : null)),
+      lineStyle: { color: SERI_2, width: 2, type: [6, 4] },
+    },
+    {
+      name: "Gerçekleşen",
+      type: "line",
+      silent: true,
+      z: 5,
+      yAxisIndex: 1,
+      // Gerçekleşen noktalar az; her biri kaydedilmiş bir ödemedir,
+      // o yüzden nokta olarak da gösterilir.
+      symbol: "circle",
+      symbolSize: 6,
+      showSymbol: true,
+      data: noktalar.map((p) => (p.i <= sonGercek ? cizgiDeger(p) : null)),
+      itemStyle: { color: SERI_1 },
+      lineStyle: { color: SERI_1, width: 2 },
+    },
+  ];
 
   const imlec: ScatterSeriesOption = {
     type: "scatter",
     silent: true,
     animation: false,
-    z: 5,
+    z: 6,
+    yAxisIndex: 1,
     symbolSize: 9,
-    data: noktalar.map((p) => (p.i === aktif ? deger(p) : null)),
+    data: noktalar.map((p) => (p.i === aktif ? cizgiDeger(p) : null)),
     itemStyle: {
-      color: "#ffffff",
+      color: KAGIT,
       borderColor: aktifNokta?.gecmis ? SERI_1 : SERI_2,
       borderWidth: 2.5,
     },
@@ -156,40 +186,58 @@ function secenekUret(
           },
   };
 
+  const eksenAdi = {
+    color: GRI,
+    fontSize: 10,
+    fontFamily: YAZI,
+  };
+
   return {
     animationDuration: 380,
     textStyle: { fontFamily: YAZI },
-    grid: { left: 46, right: 18, top: 12, bottom: 30 },
+    grid: { left: 48, right: 54, top: 30, bottom: 30 },
     xAxis: {
       type: "category",
       data: noktalar.map((p) => p.kisa),
-      boundaryGap: !alanModu,
+      boundaryGap: true,
       axisLine: { lineStyle: { color: CIZGI } },
       axisTick: { show: false },
       axisLabel: {
         color: GRI,
         fontSize: 11,
         margin: 14,
-        interval: (i: number) => i % 6 === 0,
+        interval: (i: number) => i % 3 === 0,
       },
     },
-    yAxis: {
-      type: "value",
-      min: 0,
-      max: tavan,
-      interval: tavan / 2,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: CIZGI_2 } },
-      axisLabel: {
-        color: GRI,
-        fontSize: 11,
-        margin: 8,
-        formatter: (v: number) =>
-          v === 0 ? "0" : `${(v / 1_000_000).toFixed(1).replace(".", ",")}M`,
+    yAxis: [
+      {
+        type: "value",
+        name: "AYLIK",
+        nameGap: 12,
+        nameTextStyle: { ...eksenAdi, align: "left" },
+        min: 0,
+        max: solTavan,
+        interval: solTavan / 2,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: CIZGI_2 } },
+        axisLabel: { color: GRI, fontSize: 11, margin: 8, formatter: milyon },
       },
-    },
-    series: [...seriler, imlec],
+      {
+        type: "value",
+        name: mod === "kumulatif" ? "KÜMÜLATİF" : "BAKİYE",
+        nameGap: 12,
+        nameTextStyle: { ...eksenAdi, align: "right" },
+        min: 0,
+        max: toplamBedel,
+        interval: toplamBedel / 2,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { color: GRI, fontSize: 11, margin: 8, formatter: milyon },
+      },
+    ],
+    series: [...kolonlar, ...cizgiler, imlec],
   };
 }
 
@@ -262,7 +310,7 @@ export default function ZamanGrafik({
   }, []);
 
   useEffect(() => {
-    grafik.current?.setOption(secenek);
+    grafik.current?.setOption(secenek, { replaceMerge: "series" });
   }, [secenek]);
 
   return (
@@ -270,7 +318,7 @@ export default function ZamanGrafik({
       ref={kutu}
       role="img"
       aria-label={aciklama}
-      style={{ width: "100%", aspectRatio: "470 / 196", cursor: "crosshair" }}
+      style={{ width: "100%", aspectRatio: "470 / 210", cursor: "crosshair" }}
     />
   );
 }

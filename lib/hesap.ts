@@ -2,8 +2,11 @@
  * Liva Acıbadem A Blok 8 no'lu daire — ödeme takibi.
  *
  * YENİ ÖDEME EKLEMEK: aşağıdaki `odemeler` dizisine bir satır ekleyin.
- * Panodaki bütün sayılar, plan durumları ve grafik buradan hesaplanır;
- * başka hiçbir yeri değiştirmeye gerek yoktur.
+ * Panodaki bütün sayılar, plan durumları ve grafik buradan hesaplanır.
+ *
+ * TEK İSTİSNA: ödeme "pesinat" türündeyse `sozlesme.pesinat` da aynı
+ * toplama çekilmelidir. Taksit sayısı ve son vade sabit kaldığı için
+ * plan bu sayıdan yürür; güncellenmezse kümülatif eğri bedeli aşar.
  */
 
 export const sozlesme = {
@@ -14,7 +17,8 @@ export const sozlesme = {
   hakSahibi: "Aslı Ece Zeybek",
 
   toplamBedel: 14_000_000,
-  pesinat: 3_000_000,
+  /** Peşinat olarak ödenen toplam. Yeni peşinat havalesinde güncellenir. */
+  pesinat: 3_500_000,
   taksitSayisi: 18,
 
   /**
@@ -74,6 +78,16 @@ export const odemeler: Odeme[] = [
     banka: "Vakıfbank",
     referans: "…26011863",
     masraf: 209.39,
+    tur: "pesinat",
+  },
+  {
+    // Yapı Kredi bilgi dekontunda komisyon ve vergi "-" görünüyor;
+    // masraf kaydedilmedi. Banka ayrıca kestiyse buraya eklenmeli.
+    tarih: "2026-09-03",
+    tutar: 500_000,
+    alici: "Zeybek İnşaat",
+    banka: "Vakıfbank",
+    referans: "…72397715",
     tur: "pesinat",
   },
 ];
@@ -164,6 +178,13 @@ export function hesapla(bugun: Date) {
 
   const toplamOdenen = pesinatOdenen + taksitOdenen;
   const kalanBorc = Math.max(0, sozlesme.toplamBedel - toplamOdenen);
+
+  /**
+   * Taksit sayısı ve son vade sabittir; peşinat büyüdükçe aylık taksit
+   * küçülür ve kümülatif eğri tam olarak bedele oturur. Bu yüzden
+   * `sozlesme.pesinat` her yeni peşinat havalesiyle birlikte güncellenir
+   * (bkz. dosya başındaki not) — aksi halde 18. ayda bakiye eksiye düşer.
+   */
   const planToplami = sozlesme.toplamBedel - sozlesme.pesinat;
   const aylikTaksit = planToplami / sozlesme.taksitSayisi;
   const yuzde = (toplamOdenen / sozlesme.toplamBedel) * 100;
@@ -263,8 +284,12 @@ export type GrafikNoktasi = {
   kisa: string;
   uzun: string;
   vade: string;
-  /** O ayki ödeme tutarı. */
+  /** O ayki ödeme tutarı — plandaki değer. */
   tutar: number;
+  /** Sözleşmenin o ay için öngördüğü tutar (kümelenmiş kolonun solu). */
+  beklenen: number;
+  /** O ay fiilen ödenen tutar (kümelenmiş kolonun sağı). */
+  odenen: number;
   /** Ay sonundaki kalan bakiye. */
   bakiye: number;
   /** Ay sonuna kadarki kümülatif ödeme. */
@@ -303,6 +328,8 @@ export function grafikNoktalari(
       uzun: `${AYLAR[bas.getMonth()]} ${bas.getFullYear()}`,
       vade: tarihKisa(sonOdeme.tarih),
       tutar: hesap.pesinatOdenen,
+      beklenen: sozlesme.pesinat,
+      odenen: hesap.pesinatOdenen,
       bakiye: toplamBedel - hesap.pesinatOdenen,
       kumulatif: hesap.pesinatOdenen,
       gecmis: true,
@@ -317,6 +344,8 @@ export function grafikNoktalari(
         uzun: t.ayUzun,
         vade: t.vade,
         tutar: t.beklenen,
+        beklenen: t.beklenen,
+        odenen: t.odenen,
         bakiye: toplamBedel - kum,
         kumulatif: kum,
         gecmis: t.durum === "odendi",
