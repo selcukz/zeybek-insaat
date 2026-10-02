@@ -10,25 +10,22 @@ import {
   type Hesap,
   type Odeme,
 } from "@/lib/hesap";
-import PastaGrafik from "./pasta-grafik";
-import ZamanGrafik, { type Mod } from "./zaman-grafik";
+import KopruGrafik from "./kopru-grafik";
+import ProfilGrafik, { type Mod } from "./profil-grafik";
 
 const SERI_1 = "#1b6fa8";
 const GECE = "#051c2c";
-const GRI = "#8a98a5";
 
-/** Sekmeler yalnız çizgiyi değiştirir; kolonlar iki görünümde de aynı. */
-const MODLAR: { k: Mod; ad: string; alt: string }[] = [
-  {
-    k: "kumulatif",
-    ad: "Kümülatif",
-    alt: "Kolonlar 18 taksit · çizgi bedele tırmanan toplam (peşinat dahil)",
-  },
-  {
-    k: "bakiye",
-    ad: "Bakiye",
-    alt: "Kolonlar 18 taksit · çizgi kalan borcun aylara göre azalışı",
-  },
+/* Grafik kartı — diagram-design varsayılan jetonları (hesap.css .dd) */
+const INK = "#2d3142";
+const MUTED = "#4f5d75";
+const SOFT = "#7a8399";
+const ACCENT = "#eb6c36";
+
+/** Sekmeler yalnız çizginin ne gösterdiğini değiştirir. */
+const MODLAR: { k: Mod; ad: string }[] = [
+  { k: "kumulatif", ad: "Kümülatif" },
+  { k: "bakiye", ad: "Bakiye" },
 ];
 
 export default function OdemePanosu({
@@ -52,8 +49,6 @@ export default function OdemePanosu({
   const aktifIndex = uzerinde ?? sabit;
   const aktif = noktalar[aktifIndex ?? 0];
   const imlecVar = aktifIndex !== null;
-
-  const altBaslik = MODLAR.find((m) => m.k === mod)!.alt;
 
   return (
     <>
@@ -107,32 +102,31 @@ export default function OdemePanosu({
         </div>
       </div>
 
-      {/* ═══ Grafikler ═══ */}
-      <section className="kart ic">
+      {/* ═══ Grafikler — diagram-design kartı ═══ */}
+      <section className="dd">
         <div
           style={{
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "flex-end",
             justifyContent: "space-between",
             gap: 24,
             flexWrap: "wrap",
           }}
         >
           <div>
-            <h2 className="num" style={{ fontSize: 20, letterSpacing: "0.02em" }}>
-              ÖDEME PROFİLİ
+            <p className="dd-kas">Ödeme profili · {MODLAR.find((m) => m.k === mod)!.ad}</p>
+            <h2 className="dd-baslik">
+              {lira(hesap.toplamOdenen)} ₺ ödendi{" "}
+              <em>· {lira(hesap.kalanBorc)} ₺ kaldı</em>
             </h2>
-            <p className="kucuk" style={{ marginTop: 8 }}>
-              {altBaslik}
-            </p>
           </div>
 
-          <div className="sekmeler" role="group" aria-label="Grafik görünümü">
+          <div className="dd-sekmeler" role="group" aria-label="Grafik görünümü">
             {MODLAR.map((m) => (
               <button
                 key={m.k}
                 type="button"
-                className="sekme"
+                className="dd-sekme"
                 aria-pressed={mod === m.k}
                 onClick={() => setMod(m.k)}
               >
@@ -146,110 +140,65 @@ export default function OdemePanosu({
           style={{
             display: "flex",
             gap: 28,
-            marginTop: 20,
+            marginTop: 22,
             alignItems: "flex-start",
             flexWrap: "wrap",
           }}
         >
-          {/* ── zaman grafiği ── */}
-          <div style={{ flex: "1 1 380px", minWidth: 340, maxWidth: 560 }}>
-            <ZamanGrafik
+          {/* ── çizgi grafik ── */}
+          <div style={{ flex: "0 1 880px", minWidth: 0 }}>
+            <ProfilGrafik
               noktalar={noktalar}
               mod={mod}
               aktif={aktifIndex}
               toplamBedel={toplamBedel}
-              aciklama={altBaslik}
+              toplamOdenen={hesap.toplamOdenen}
+              bugun={hesap.bugun}
               onGezin={setUzerinde}
               onSec={(i) => setSabit(sabit === i ? null : i)}
             />
-
-            <div
-              style={{
-                display: "flex",
-                gap: 20,
-                marginTop: 10,
-                paddingLeft: 46,
-                flexWrap: "wrap",
-              }}
-            >
-              <Anahtar renk={SERI_1} ad="Ödenen" />
-              <Anahtar bos ad="Beklenen" />
-              <Anahtar cizgi ad={mod === "kumulatif" ? "Kümülatif" : "Kalan bakiye"} />
-            </div>
-            <p className="minik" style={{ marginTop: 10, paddingLeft: 46 }}>
-              Üzerinde gezinin — panel o aya geçer. Tıklayınca sabitlenir.
-            </p>
           </div>
 
-          {/* ── dağılım pastası ── */}
-          <PastaGrafik
-            pesinat={hesap.pesinatOdenen}
-            taksit={hesap.taksitOdenen}
-            kalan={hesap.kalanBorc}
-            toplam={toplamBedel}
-          />
-
           {/* ── okuma paneli ── */}
-          <div
-            style={{
-              width: 250,
-              flexShrink: 0,
-              border: "1px solid var(--cizgi)",
-              background: "var(--panel)",
-              padding: 18,
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
+          <aside className="dd-panel" style={{ width: 250, flexShrink: 0 }}>
             <div>
-              <p className="lbl">
+              <p className="dd-kas" style={{ fontSize: 10 }}>
                 {imlecVar && uzerinde === null ? "Sabitlendi" : aktif.tur}
               </p>
-              <p className="num" style={{ fontSize: 20, marginTop: 10 }}>
+              <p className="dd-baslik" style={{ fontSize: 26, marginTop: 6 }}>
                 {aktif.uzun}
               </p>
             </div>
 
-            <div style={{ height: 1, background: "var(--cizgi)" }} />
+            <div className="dd-cizgi" />
 
             {[
-              { ad: "Beklenen", d: lira(aktif.beklenen), c: GECE },
+              { ad: "Beklenen", d: lira(aktif.beklenen), c: INK },
               {
                 ad: "Ödenen",
                 d: lira(aktif.odenen),
-                c: aktif.odenen > 0 ? SERI_1 : GRI,
+                c: aktif.odenen > 0 ? INK : SOFT,
               },
-              { ad: "Kalan bakiye", d: lira(aktif.bakiye), c: SERI_1 },
-              { ad: "Kümülatif", d: lira(aktif.kumulatif), c: GECE },
+              { ad: "Kalan bakiye", d: lira(aktif.bakiye), c: INK },
+              { ad: "Kümülatif", d: lira(aktif.kumulatif), c: INK },
             ].map((s) => (
-              <div
-                key={s.ad}
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}
-              >
-                <span className="lbl" style={{ color: "var(--gri-2)" }}>
-                  {s.ad}
-                </span>
-                <span className="num" style={{ fontSize: 15, color: s.c }}>
+              <div key={s.ad} className="dd-satir">
+                <span className="dd-ad">{s.ad}</span>
+                <span className="dd-deger" style={{ color: s.c }}>
                   {s.d}
                 </span>
               </div>
             ))}
 
-            <div style={{ height: 1, background: "var(--cizgi)" }} />
+            <div className="dd-cizgi" />
 
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <svg
-                width="17"
-                height="17"
+                width="16"
+                height="16"
                 viewBox="0 0 16 16"
                 fill="none"
-                stroke={aktif.gecmis ? SERI_1 : GRI}
+                stroke={aktif.gecmis ? ACCENT : SOFT}
                 strokeWidth={1.6}
                 strokeLinecap="round"
                 aria-hidden="true"
@@ -263,24 +212,56 @@ export default function OdemePanosu({
                   </>
                 )}
               </svg>
-              <span
-                className="num"
-                style={{ fontSize: 14, color: aktif.gecmis ? SERI_1 : GRI }}
-              >
+              <span className="dd-kas" style={{ color: aktif.gecmis ? INK : MUTED }}>
                 {aktif.durum}
               </span>
             </div>
 
-            <p className="kucuk" style={{ marginTop: "auto" }}>
+            <p style={{ fontSize: 12.5, lineHeight: 1.55, color: MUTED }}>
               {aktif.i === 0
                 ? hesap.pesinatTamam
                   ? `Peşinatın tamamı ${sayiAdi(hesap.pesinatAdedi)} havaleyle ${hesap.pesinatSonTarih} tarihinde tamamlandı.`
                   : `Peşinat ${sayiAdi(hesap.pesinatAdedi)} havaleyle kısmen ödendi; son havale ${hesap.pesinatSonTarih}.`
                 : aktif.gecmis
                   ? `Taksit ${aktif.i} ödendi. Vade ${aktif.vade}.`
-                  : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
+                  : aktif.odenen > 0
+                    ? `Vade ${aktif.vade}. ${lira(aktif.odenen)} ₺ önceki havaleden geçti; ${lira(aktif.beklenen - aktif.odenen)} ₺ kaldı.`
+                    : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
             </p>
+          </aside>
+        </div>
+
+        <div className="dd-cizgi" style={{ margin: "30px 0 26px" }} />
+
+        {/* ── şelale ── */}
+        <div
+          style={{
+            display: "flex",
+            gap: 40,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: "0 1 640px", minWidth: 0 }}>
+            <p className="dd-kas">Bedelden kalana</p>
+            <h3 className="dd-baslik" style={{ fontSize: 24 }}>
+              Ödenen her lira borçtan düşer
+            </h3>
+            <div style={{ marginTop: 16 }}>
+              <KopruGrafik
+                toplamBedel={toplamBedel}
+                pesinat={hesap.pesinatOdenen}
+                taksit={hesap.taksitOdenen}
+                kalan={hesap.kalanBorc}
+              />
+            </div>
           </div>
+
+          <p className="dd-not dd-not-yan" style={{ flex: "1 1 240px", maxWidth: 340 }}>
+            Bedelin %{hesap.yuzde.toFixed(1).replace(".", ",")}&apos;i ödendi. Kalan{" "}
+            {lira(hesap.kalanBorc)} ₺, {hesap.kalanTaksitSayisi} taksitte{" "}
+            {hesap.bitisTarihi} tarihinde sıfırlanır.
+          </p>
         </div>
       </section>
 
@@ -442,39 +423,5 @@ export default function OdemePanosu({
         </section>
       </div>
     </>
-  );
-}
-
-/**
- * Dolu kutu = ödenen. İçi boş kesik çizgili kutu = beklenen.
- * İnce çubuk = sağ eksendeki kümülatif çizgi.
- */
-function Anahtar({
-  renk,
-  bos,
-  cizgi,
-  ad,
-}: {
-  renk?: string;
-  bos?: boolean;
-  cizgi?: boolean;
-  ad: string;
-}) {
-  return (
-    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span
-        style={{
-          width: 16,
-          height: cizgi ? 2 : 9,
-          borderRadius: 2,
-          display: "inline-block",
-          background: cizgi ? SERI_1 : bos ? "#f0f7fb" : renk,
-          border: bos ? "1px solid #5fc2e8" : undefined,
-        }}
-      />
-      <span className="lbl" style={{ color: "var(--gri-2)" }}>
-        {ad}
-      </span>
-    </span>
   );
 }

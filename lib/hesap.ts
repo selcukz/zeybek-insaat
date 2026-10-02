@@ -263,6 +263,11 @@ export function hesapla(bugun: Date) {
   const siradaki = taksitler.find((t) => t.durum !== "odendi");
 
   return {
+    /** Hesabın yapıldığı gün, ISO — grafikteki "bugün" işareti için. */
+    bugun: `${bugun.getFullYear()}-${String(bugun.getMonth() + 1).padStart(
+      2,
+      "0",
+    )}-${String(bugun.getDate()).padStart(2, "0")}`,
     pesinatOdenen,
     taksitOdenen,
     toplamOdenen,

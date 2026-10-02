@@ -225,3 +225,161 @@
   font-size: 12px;
   color: var(--gri);
 }
+
+/* ============================================================
+   Grafik kartı — diagram-design varsayılan derisi
+   (github.com/cathrynlavery/diagram-design · style-guide.md).
+
+   Sayfanın lacivert / Consolas dilinden bilinçli olarak ayrılır:
+   kart kendi kâğıdında durur. Gölge yok, çerçeve kılcal; vurgu
+   rengi (portakal) grafik başına en çok bir öğede.
+   ============================================================ */
+
+.hesap .dd {
+  --dd-paper: #f5f5f5;
+  --dd-ink: #2d3142;
+  --dd-muted: #4f5d75;
+  --dd-soft: #7a8399;
+  --dd-rule: rgba(45, 49, 66, 0.12);
+  --dd-rule-solid: #bfc0c0;
+  --dd-accent: #eb6c36;
+  --dd-accent-tint: rgba(235, 108, 54, 0.08);
+  --dd-sans: var(--font-geist), "Geist", system-ui, sans-serif;
+  --dd-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  --dd-serif: var(--font-instrument), "Instrument Serif", serif;
+
+  background: var(--dd-paper);
+  color: var(--dd-ink);
+  font-family: var(--dd-sans);
+  border-bottom: 1px solid var(--dd-rule);
+  padding: 34px clamp(20px, 3vw, 52px) 30px;
+}
+
+.hesap .dd-kas {
+  font-family: var(--dd-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dd-muted);
+}
+
+.hesap .dd-baslik {
+  font-family: var(--dd-serif);
+  font-weight: 400;
+  font-size: clamp(24px, 1.6vw + 14px, 32px);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: 8px;
+}
+.hesap .dd-baslik em {
+  font-style: italic;
+  color: var(--dd-muted);
+}
+
+.hesap .dd-not {
+  font-family: var(--dd-serif);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--dd-muted);
+}
+
+/* SVG metinleri — font-family özniteliği var() çözmez, sınıf çözer */
+.hesap .dd-m {
+  font-family: var(--dd-mono);
+}
+.hesap .dd-s {
+  font-family: var(--dd-sans);
+}
+
+/* Diyagram yerel olarak kayar; telefon bütün sayfayı kaydırmaz.
+   min-width = viewBox genişliği, yoksa yazı rampası küçülür. */
+.hesap .dd-sarma {
+  width: 100%;
+  overflow-x: auto;
+}
+.hesap .dd-sarma > svg {
+  width: 100%;
+  display: block;
+}
+@media print {
+  .hesap .dd-sarma {
+    overflow: visible;
+  }
+  .hesap .dd-sarma > svg {
+    min-width: 0 !important;
+  }
+}
+
+/* Görünüm seçici — dikdörtgen etiket, rx 2, gölgesiz */
+.hesap .dd-sekmeler {
+  display: flex;
+  border: 1px solid var(--dd-rule-solid);
+  border-radius: 2px;
+}
+.hesap .dd-sekme {
+  min-height: 40px;
+  padding: 0 18px;
+  background: transparent;
+  color: var(--dd-muted);
+  border: 0;
+  border-left: 1px solid var(--dd-rule-solid);
+  cursor: pointer;
+  font-family: var(--dd-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.hesap .dd-sekme:first-child {
+  border-left: 0;
+}
+.hesap .dd-sekme:hover {
+  background: rgba(45, 49, 66, 0.05);
+}
+.hesap .dd-sekme[aria-pressed="true"] {
+  background: var(--dd-ink);
+  color: var(--dd-paper);
+}
+
+/* Okuma paneli — beyaz zemin, kılcal çerçeve, 6px köşe */
+.hesap .dd-panel {
+  background: #ffffff;
+  border: 1px solid var(--dd-rule);
+  border-radius: 6px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.hesap .dd-satir {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.hesap .dd-ad {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dd-muted);
+}
+.hesap .dd-deger {
+  font-family: var(--dd-mono);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.hesap .dd-cizgi {
+  height: 1px;
+  background: var(--dd-rule);
+}
+
+/* Şelalenin yanındaki not, grafiğin üst çizgisi hizasında durur;
+   alta sarınca boşluk bırakmaz. */
+@media (min-width: 1000px) {
+  .hesap .dd-not-yan {
+    margin-top: 72px;
+  }
+}
