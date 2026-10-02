@@ -90,6 +90,17 @@ export const odemeler: Odeme[] = [
     referans: "…72397715",
     tur: "pesinat",
   },
+  {
+    // Ziraat'ten gönderildi. Eylül taksitine (vade 30.09) sayılır;
+    // 1.666,67 ₺ fazlası Ekim taksitine geçer.
+    tarih: "2026-10-02",
+    tutar: 585_000,
+    alici: "Zeybek İnşaat",
+    banka: "Vakıfbank",
+    referans: "…26012882",
+    masraf: 209.38,
+    tur: "taksit",
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -191,6 +202,13 @@ export function hesapla(bugun: Date) {
 
   const masrafToplami = odemeler.reduce((t, o) => t + (o.masraf ?? 0), 0);
 
+  /**
+   * Taksit ödemeleri ödendiği aya değil, en eski açık taksite sayılır
+   * (sözleşme md. 4.2, TBK 102): vadeden birkaç gün sonra yapılan havale
+   * o taksiti kapatır, fazlası sıradaki taksite geçer.
+   */
+  let dagitilacak = taksitOdenen;
+
   // Taksitler başlangıcı takip eden ay başlar.
   const taksitler: Taksit[] = [];
   for (let i = 1; i <= sozlesme.taksitSayisi; i++) {
@@ -198,14 +216,12 @@ export function hesapla(bugun: Date) {
     const yil = d.getFullYear();
     const ayIndex = d.getMonth();
 
-    // O ay içinde yapılan taksit ödemeleri
-    const odenen = odemeler
-      .filter((o) => o.tur === "taksit")
-      .filter((o) => {
-        const od = new Date(o.tarih + "T00:00:00");
-        return od.getFullYear() === yil && od.getMonth() === ayIndex;
-      })
-      .reduce((t, o) => t + o.tutar, 0);
+    // Son taksit, kuruş yuvarlaması kalmasın diye artanın tamamını alır.
+    const odenen =
+      i === sozlesme.taksitSayisi
+        ? dagitilacak
+        : Math.min(dagitilacak, aylikTaksit);
+    dagitilacak -= odenen;
 
     // Vade ayın son günü
     const ayinSonu = new Date(yil, ayIndex + 1, 0).getDate();
@@ -319,14 +335,18 @@ export function grafikNoktalari(
   toplamBedel: number,
 ): GrafikNoktasi[] {
   const bas = new Date(sozlesme.baslangic + "T00:00:00");
-  const sonOdeme = odemeler[odemeler.length - 1];
+  // Peşinat noktasının tarihi peşinattaki son havaledir; taksit
+  // havaleleri eklendikçe dizinin sonu artık peşinat değildir.
+  const sonPesinat = odemeler
+    .filter((o) => o.tur === "pesinat")
+    .reduce((son, o) => (o.tarih > son.tarih ? o : son));
 
   return [
     {
       i: 0,
       kisa: `${AY_KISA[bas.getMonth()]} ${String(bas.getFullYear()).slice(2)}`,
       uzun: `${AYLAR[bas.getMonth()]} ${bas.getFullYear()}`,
-      vade: tarihKisa(sonOdeme.tarih),
+      vade: tarihKisa(sonPesinat.tarih),
       tutar: hesap.pesinatOdenen,
       beklenen: sozlesme.pesinat,
       odenen: hesap.pesinatOdenen,
