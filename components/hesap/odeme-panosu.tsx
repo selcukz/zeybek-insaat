@@ -225,7 +225,7 @@ export default function OdemePanosu({
                 : aktif.gecmis
                   ? `Taksit ${aktif.i} ödendi. Vade ${aktif.vade}.`
                   : aktif.odenen > 0
-                    ? `Vade ${aktif.vade}. ${lira(aktif.odenen)} ₺ önceki havaleden geçti; ${lira(aktif.beklenen - aktif.odenen)} ₺ kaldı.`
+                    ? `Vade ${aktif.vade}. ${lira(aktif.odenen)} ₺ ödendi; ${lira(aktif.beklenen - aktif.odenen)} ₺ eksik.`
                     : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
             </p>
           </aside>

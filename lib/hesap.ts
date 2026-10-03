@@ -91,16 +91,25 @@ export const odemeler: Odeme[] = [
     tur: "pesinat",
   },
   {
-    // Ziraat'ten gönderildi. Eylül taksitine (vade 30.09) sayılır;
-    // 1.666,67 ₺ fazlası Ekim taksitine geçer.
     tarih: "2026-10-02",
-    tutar: 585_000,
-    alici: "Zeybek İnşaat",
-    banka: "Vakıfbank",
-    referans: "…26012882",
+    tutar: 415_000,
+    alici: "Yusuf Zeybek",
+    banka: "Akbank",
+    referans: "…26012898",
     masraf: 209.38,
     tur: "taksit",
   },
+  {
+    // FAST; dekontta valör 05.10.2026. Referans FAST sorgu numarasıdır.
+    tarih: "2026-10-03",
+    tutar: 165_000,
+    alici: "Yusuf Zeybek",
+    banka: "Akbank",
+    referans: "…74333303",
+    masraf: 16.75,
+    tur: "taksit",
+  },
+
 ];
 
 /* ------------------------------------------------------------------ */

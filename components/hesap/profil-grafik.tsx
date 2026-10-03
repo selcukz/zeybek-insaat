@@ -80,7 +80,13 @@ export default function ProfilGrafik({
   // Gerçekleşen: peşinat + kapanan taksitler. Son gerçek nokta nakit
   // esaslıdır (toplam ödenen) — bir sonraki taksite geçen fazla da dahil,
   // yoksa grafik başlıktaki rakamdan eksik gösterir.
-  const sonGercek = sonGercekIndex(noktalar);
+  // Vadesi geçmiş ve kısmen ödenmiş ay da gerçekleşen çizgiye girer;
+  // yoksa ödenen para grafikte peşinat ayına yığılır.
+  const bugunI = bugunKonumu(bugun);
+  const sonGercek = noktalar.reduce(
+    (son, p) => (p.odenen > 0 && p.i <= bugunI ? Math.max(son, p.i) : son),
+    sonGercekIndex(noktalar),
+  );
   const gercek: number[] = [];
   let kum = noktalar[0].odenen;
   for (let i = 0; i <= sonGercek; i++) {
@@ -88,7 +94,7 @@ export default function ProfilGrafik({
     gercek.push(deger(i === sonGercek ? toplamOdenen : kum));
   }
 
-  const bugunX = x(bugunKonumu(bugun));
+  const bugunX = x(bugunI);
   const izgara = [0.25, 0.5, 0.75, 1].map((f) => f * toplamBedel);
 
   const aktifDeger =
