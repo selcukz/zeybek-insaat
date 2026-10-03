@@ -7,6 +7,10 @@
  * TEK İSTİSNA: ödeme "pesinat" türündeyse `sozlesme.pesinat` da aynı
  * toplama çekilmelidir. Taksit sayısı ve son vade sabit kaldığı için
  * plan bu sayıdan yürür; güncellenmezse kümülatif eğri bedeli aşar.
+ *
+ * TAKSİT ÖDEMESİ: `taksit` alanına kapattığı taksitin sırası yazılır.
+ * O ay için ne ödendiyse taksit o tutarla kapanır (eksik ya da fazla);
+ * kalan borç açık taksitlere eşit bölünür.
  */
 
 export const sozlesme = {
@@ -30,7 +34,7 @@ export const sozlesme = {
 
 export type OdemeTuru = "pesinat" | "taksit";
 
-export type Odeme = {
+type OdemeOrtak = {
   /** ISO tarih — dekonttaki işlem tarihi. */
   tarih: string;
   tutar: number;
@@ -40,8 +44,17 @@ export type Odeme = {
   referans: string;
   /** EFT masrafı — bedele mahsup edilmez. */
   masraf?: number;
-  tur: OdemeTuru;
 };
+
+export type Odeme = OdemeOrtak &
+  (
+    | { tur: "pesinat" }
+    | {
+        tur: "taksit";
+        /** Kapattığı taksitin sırası (1 = Eylül 2026). */
+        taksit: number;
+      }
+  );
 
 export const odemeler: Odeme[] = [
   {
@@ -98,6 +111,7 @@ export const odemeler: Odeme[] = [
     referans: "…26012898",
     masraf: 209.38,
     tur: "taksit",
+    taksit: 1,
   },
   {
     // FAST; dekontta valör 05.10.2026. Referans FAST sorgu numarasıdır.
@@ -108,6 +122,7 @@ export const odemeler: Odeme[] = [
     referans: "…74333303",
     masraf: 16.75,
     tur: "taksit",
+    taksit: 1,
   },
 
 ];
@@ -158,7 +173,7 @@ export function tarihKisa(iso: string) {
 /*  Hesap                                                              */
 /* ------------------------------------------------------------------ */
 
-export type TaksitDurumu = "odendi" | "kismi" | "gecikti" | "bekliyor";
+export type TaksitDurumu = "odendi" | "gecikti" | "bekliyor";
 
 export type Taksit = {
   sira: number;
@@ -200,23 +215,37 @@ export function hesapla(bugun: Date) {
   const kalanBorc = Math.max(0, sozlesme.toplamBedel - toplamOdenen);
 
   /**
-   * Taksit sayısı ve son vade sabittir; peşinat büyüdükçe aylık taksit
-   * küçülür ve kümülatif eğri tam olarak bedele oturur. Bu yüzden
-   * `sozlesme.pesinat` her yeni peşinat havalesiyle birlikte güncellenir
-   * (bkz. dosya başındaki not) — aksi halde 18. ayda bakiye eksiye düşer.
+   * Taksit planı. `sozlesme.pesinat` her yeni peşinat havalesiyle
+   * güncellenir (bkz. dosya başındaki not); plan toplamı bedelden
+   * peşinat düşülerek bulunur.
    */
   const planToplami = sozlesme.toplamBedel - sozlesme.pesinat;
-  const aylikTaksit = planToplami / sozlesme.taksitSayisi;
   const yuzde = (toplamOdenen / sozlesme.toplamBedel) * 100;
 
   const masrafToplami = odemeler.reduce((t, o) => t + (o.masraf ?? 0), 0);
 
   /**
-   * Taksit ödemeleri ödendiği aya değil, en eski açık taksite sayılır
-   * (sözleşme md. 4.2, TBK 102): vadeden birkaç gün sonra yapılan havale
-   * o taksiti kapatır, fazlası sıradaki taksite geçer.
+   * Bir aya ödeme girildiyse o taksit ödenen tutarla kapanır — tutar
+   * eşit taksitten az ya da fazla olabilir. Kalan borç açık taksitlere
+   * kuruşa yuvarlanarak eşit bölünür; son açık taksit kuruş farkını alır.
    */
-  let dagitilacak = taksitOdenen;
+  const kapanan = new Map<number, number>();
+  for (const o of odemeler) {
+    if (o.tur === "taksit") {
+      kapanan.set(o.taksit, (kapanan.get(o.taksit) ?? 0) + o.tutar);
+    }
+  }
+  const kapananToplam = [...kapanan.values()].reduce((t, v) => t + v, 0);
+  const acikSayisi = sozlesme.taksitSayisi - kapanan.size;
+  const kalanPlan = planToplami - kapananToplam;
+  const kurus = (n: number) => Math.round(n * 100) / 100;
+  const aylikTaksit = acikSayisi > 0 ? kurus(kalanPlan / acikSayisi) : 0;
+  const sonAcik = Math.max(
+    0,
+    ...Array.from({ length: sozlesme.taksitSayisi }, (_, k) => k + 1).filter(
+      (i) => !kapanan.has(i),
+    ),
+  );
 
   // Taksitler başlangıcı takip eden ay başlar.
   const taksitler: Taksit[] = [];
@@ -225,21 +254,21 @@ export function hesapla(bugun: Date) {
     const yil = d.getFullYear();
     const ayIndex = d.getMonth();
 
-    // Son taksit, kuruş yuvarlaması kalmasın diye artanın tamamını alır.
-    const odenen =
-      i === sozlesme.taksitSayisi
-        ? dagitilacak
-        : Math.min(dagitilacak, aylikTaksit);
-    dagitilacak -= odenen;
+    const odenen = kapanan.get(i) ?? 0;
+    const beklenen = kapanan.has(i)
+      ? odenen
+      : i === sonAcik
+        ? kurus(kalanPlan - aylikTaksit * (acikSayisi - 1))
+        : aylikTaksit;
 
     // Vade ayın son günü
     const ayinSonu = new Date(yil, ayIndex + 1, 0).getDate();
     const vadeTarihi = new Date(yil, ayIndex, ayinSonu);
 
     let durum: TaksitDurumu;
-    if (odenen >= aylikTaksit - 0.5) durum = "odendi";
-    else if (vadeTarihi < bugun) durum = odenen > 0 ? "kismi" : "gecikti";
-    else durum = odenen > 0 ? "kismi" : "bekliyor";
+    if (kapanan.has(i)) durum = "odendi";
+    else if (vadeTarihi < bugun) durum = "gecikti";
+    else durum = "bekliyor";
 
     taksitler.push({
       sira: i,
@@ -249,10 +278,10 @@ export function hesapla(bugun: Date) {
       vade: `${String(ayinSonu).padStart(2, "0")}.${String(
         ayIndex + 1,
       ).padStart(2, "0")}.${yil}`,
-      beklenen: aylikTaksit,
+      beklenen,
       odenen,
       durum,
-      yuzde: Math.min(100, (odenen / aylikTaksit) * 100),
+      yuzde: kapanan.has(i) ? 100 : 0,
     });
   }
 
@@ -268,7 +297,7 @@ export function hesapla(bugun: Date) {
   );
 
   const odenenTaksitSayisi = taksitler.filter((t) => t.durum === "odendi").length;
-  const geciken = taksitler.filter((t) => t.durum === "gecikti" || t.durum === "kismi");
+  const geciken = taksitler.filter((t) => t.durum === "gecikti");
   const siradaki = taksitler.find((t) => t.durum !== "odendi");
 
   return {
@@ -332,7 +361,6 @@ export type GrafikNoktasi = {
 
 const DURUM_ADI: Record<TaksitDurumu, string> = {
   odendi: "Ödendi",
-  kismi: "Kısmi",
   gecikti: "Gecikti",
   bekliyor: "Bekliyor",
 };
@@ -340,7 +368,8 @@ const DURUM_ADI: Record<TaksitDurumu, string> = {
 /**
  * Zaman grafiğinin ve taksit tablosunun ortak veri kaynağı.
  *
- * Kümülatif eğri peşinatın üzerine planlanan taksitleri ekler. Yürüyüş
+ * Kümülatif eğri peşinatın üzerine taksitleri sırayla ekler (kapanan
+ * taksit ödenen tutarıyla, açık taksit eşit payıyla). Yürüyüş
  * `toplamOdenen`den değil `pesinatOdenen`den başlar: ödenen taksitler
  * `toplamOdenen` içinde zaten sayılıdır, oradan yürünürse iki kez sayılır.
  */
@@ -354,6 +383,8 @@ export function grafikNoktalari(
   const sonPesinat = odemeler
     .filter((o) => o.tur === "pesinat")
     .reduce((son, o) => (o.tarih > son.tarih ? o : son));
+
+  let kum = hesap.pesinatOdenen;
 
   return [
     {
@@ -371,7 +402,7 @@ export function grafikNoktalari(
       durum: hesap.pesinatTamam ? "Ödendi" : "Kısmi",
     },
     ...hesap.taksitler.map((t) => {
-      const kum = hesap.pesinatOdenen + t.beklenen * t.sira;
+      kum += t.beklenen;
       return {
         i: t.sira,
         kisa: t.ayKisa,
@@ -380,7 +411,8 @@ export function grafikNoktalari(
         tutar: t.beklenen,
         beklenen: t.beklenen,
         odenen: t.odenen,
-        bakiye: toplamBedel - kum,
+        // Kuruşa yuvarlanır; kayan nokta artığı son ayda "−0" yazdırmasın.
+        bakiye: Math.round((toplamBedel - kum) * 100) / 100 + 0,
         kumulatif: kum,
         gecmis: t.durum === "odendi",
         tur: `Taksit ${t.sira}`,

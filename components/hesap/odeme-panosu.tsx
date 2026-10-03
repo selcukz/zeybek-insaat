@@ -224,9 +224,7 @@ export default function OdemePanosu({
                   : `Peşinat ${sayiAdi(hesap.pesinatAdedi)} havaleyle kısmen ödendi; son havale ${hesap.pesinatSonTarih}.`
                 : aktif.gecmis
                   ? `Taksit ${aktif.i} ödendi. Vade ${aktif.vade}.`
-                  : aktif.odenen > 0
-                    ? `Vade ${aktif.vade}. ${lira(aktif.odenen)} ₺ ödendi; ${lira(aktif.beklenen - aktif.odenen)} ₺ eksik.`
-                    : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
+                  : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
             </p>
           </aside>
         </div>
@@ -394,7 +392,7 @@ export default function OdemePanosu({
                     </td>
                     <td className="num sag minik">{lira(n.bakiye)}</td>
                     <td className="num sag" style={{ fontSize: 14 }}>
-                      {lira(t.beklenen)}
+                      {liraKurus(t.beklenen)}
                     </td>
                     <td className="lbl sag">{n.durum}</td>
                   </tr>
