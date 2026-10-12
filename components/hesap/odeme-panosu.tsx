@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  dolarNoktalari,
   grafikNoktalari,
   lira,
   liraKurus,
@@ -10,6 +11,7 @@ import {
   type Hesap,
   type Odeme,
 } from "@/lib/hesap";
+import DolarGrafik from "./dolar-grafik";
 import KopruGrafik from "./kopru-grafik";
 import ProfilGrafik, { type Mod } from "./profil-grafik";
 
@@ -46,9 +48,15 @@ export default function OdemePanosu({
     [hesap, toplamBedel],
   );
 
+  const dolar = useMemo(() => dolarNoktalari(noktalar), [noktalar]);
+
   const aktifIndex = uzerinde ?? sabit;
   const aktif = noktalar[aktifIndex ?? 0];
   const imlecVar = aktifIndex !== null;
+  // Dolar paneli imleç yokken son ödemeyi gösterir.
+  const aktifUsd = dolar.noktalar[aktifIndex ?? dolar.sonOdeme];
+  const usd = (n: number) => `${lira(n)} $`;
+  const kurYaz = (n: number) => n.toFixed(4).replace(".", ",");
 
   return (
     <>
@@ -225,6 +233,107 @@ export default function OdemePanosu({
                 : aktif.gecmis
                   ? `Taksit ${aktif.i} ödendi. Vade ${aktif.vade}.`
                   : `Vade ${aktif.vade}. Ödeme girildiğinde bu ay Ödendi durumuna geçer.`}
+            </p>
+          </aside>
+        </div>
+
+        <div className="dd-cizgi" style={{ margin: "30px 0 26px" }} />
+
+        {/* ── dolar karşılığı ── */}
+        <div>
+          <p className="dd-kas">Dolar karşılığı · TCMB USD döviz alış</p>
+          <h3 className="dd-baslik" style={{ fontSize: 24 }}>
+            {usd(dolar.odenenUsd)} ödendi{" "}
+            <em>
+              · 18.08.2026 kuruyla {usd(dolar.odenenSabit)}, fark{" "}
+              {dolar.kurFarki < 0 ? "−" : "+"}
+              {usd(Math.abs(dolar.kurFarki))}
+            </em>
+          </h3>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 28,
+            marginTop: 22,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: "0 1 880px", minWidth: 0 }}>
+            <DolarGrafik
+              noktalar={noktalar}
+              dolar={dolar.noktalar}
+              sonOdeme={dolar.sonOdeme}
+              bugun={hesap.bugun}
+              aktif={aktifIndex}
+              onGezin={setUzerinde}
+              onSec={(i) => setSabit(sabit === i ? null : i)}
+            />
+          </div>
+
+          <aside className="dd-panel" style={{ width: 250, flexShrink: 0 }}>
+            <div>
+              <p className="dd-kas" style={{ fontSize: 10 }}>
+                {noktalar[aktifUsd.i].tur}
+              </p>
+              <p className="dd-baslik" style={{ fontSize: 26, marginTop: 6 }}>
+                {noktalar[aktifUsd.i].uzun}
+              </p>
+            </div>
+
+            <div className="dd-cizgi" />
+
+            {[
+              {
+                ad: "Bu ay · ₺",
+                d: lira(aktifUsd.ayTl || noktalar[aktifUsd.i].beklenen),
+              },
+              {
+                ad: "Bu ay · ödeme günü",
+                d: aktifUsd.ayTl ? usd(aktifUsd.ayUsd) : "—",
+              },
+              {
+                ad: "Ortalama kur",
+                d: aktifUsd.ayTl ? kurYaz(aktifUsd.ayTl / aktifUsd.ayUsd) : "—",
+              },
+            ].map((r) => (
+              <div key={r.ad} className="dd-satir">
+                <span className="dd-ad">{r.ad}</span>
+                <span className="dd-deger" style={{ color: r.d === "—" ? SOFT : INK }}>
+                  {r.d}
+                </span>
+              </div>
+            ))}
+
+            <div className="dd-cizgi" />
+
+            {[
+              {
+                ad: "Kümülatif · ödeme günü",
+                d: aktifUsd.gercek !== null ? usd(aktifUsd.gercek) : "—",
+                c: ACCENT,
+              },
+              {
+                ad: aktifUsd.gercek !== null ? "Kümülatif · 18.08 kuru" : "Plan · 18.08 kuru",
+                d: usd(aktifUsd.sabit),
+                c: INK,
+              },
+            ].map((r) => (
+              <div key={r.ad} className="dd-satir">
+                <span className="dd-ad">{r.ad}</span>
+                <span className="dd-deger" style={{ color: r.d === "—" ? SOFT : r.c }}>
+                  {r.d}
+                </span>
+              </div>
+            ))}
+
+            <p style={{ fontSize: 12.5, lineHeight: 1.55, color: MUTED }}>
+              Sabit kur {kurYaz(dolar.sabitKur)} (18.08.2026). Plan bu kurla{" "}
+              {usd(dolar.planUsd)} ile kapanır.
+              {dolar.eksikKur.length > 0 &&
+                ` Kuru girilmemiş ödeme: ${dolar.eksikKur.map(tarihKisa).join(", ")}.`}
             </p>
           </aside>
         </div>

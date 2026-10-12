@@ -38,7 +38,7 @@ const milyon = (v: number) =>
   `${(v / 1_000_000).toLocaleString("tr-TR", { maximumFractionDigits: 1 })}M`;
 
 /** Bugünün grafikteki konumu: i. nokta i. ayın son günüdür. */
-function bugunKonumu(bugunIso: string) {
+export function bugunKonumu(bugunIso: string) {
   const bas = new Date(sozlesme.baslangic + "T00:00:00");
   const b = new Date(bugunIso + "T00:00:00");
   const ayFarki =

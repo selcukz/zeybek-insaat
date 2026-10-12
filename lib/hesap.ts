@@ -11,6 +11,9 @@
  * TAKSİT ÖDEMESİ: `taksit` alanına kapattığı taksitin sırası yazılır.
  * O ay için ne ödendiyse taksit o tutarla kapanır (eksik ya da fazla);
  * kalan borç açık taksitlere eşit bölünür.
+ *
+ * DOLAR KARŞILIĞI: her yeni ödemenin günündeki TCMB USD döviz alış
+ * kuru `usdKurlari`na eklenir; eksikse dolar grafiği notta uyarır.
  */
 
 export const sozlesme = {
@@ -126,6 +129,25 @@ export const odemeler: Odeme[] = [
   },
 
 ];
+
+/**
+ * TCMB gösterge niteliğindeki USD döviz alış kuru (tcmb.gov.tr/kurlar).
+ *
+ * YENİ ÖDEME EKLENİRKEN o günün kuru da buraya eklenir. TCMB hafta
+ * sonu ve tatilde kur yayımlamaz; o günler son iş gününün kurunu alır
+ * (03.10.2026 cumartesi → 02.10.2026).
+ */
+export const usdKurlari: Record<string, number> = {
+  "2026-08-18": 47.8293,
+  "2026-08-19": 47.8467,
+  "2026-08-27": 48.0466,
+  "2026-09-02": 48.2075,
+  "2026-09-03": 48.2238,
+  "2026-10-02": 48.9699,
+};
+
+/** Dolar grafiğinde planın ve sabit kurlu çizginin kuru — ilk peşinat günü. */
+export const sabitKurTarihi = sozlesme.baslangic;
 
 /* ------------------------------------------------------------------ */
 /*  Biçimlendirme                                                      */
@@ -420,6 +442,89 @@ export function grafikNoktalari(
       };
     }),
   ];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Dolar karşılığı                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tarihteki kur: o gün yoksa en yakın önceki yayın günü. Dört günden
+ * eski kura düşülürse (uzun tatil dışında) kur girilmemiş demektir;
+ * `eksik` işaretlenir ve grafik notunda gösterilir.
+ */
+export function usdKuru(iso: string) {
+  const tarih = Object.keys(usdKurlari)
+    .filter((t) => t <= iso)
+    .sort()
+    .pop();
+  if (!tarih) return { kur: usdKurlari[sabitKurTarihi], tarih: sabitKurTarihi, eksik: true };
+  const gun =
+    (new Date(iso + "T00:00:00").getTime() -
+      new Date(tarih + "T00:00:00").getTime()) /
+    86_400_000;
+  return { kur: usdKurlari[tarih], tarih, eksik: gun > 4 };
+}
+
+export type DolarNoktasi = {
+  i: number;
+  /** 18.08.2026 kuruyla kümülatif — son ödemeye dek gerçekleşen, sonra plan. */
+  sabit: number;
+  /** Her havale kendi günündeki kurla; ödeme yoksa null. */
+  gercek: number | null;
+  /** O aya sayılan havalelerin ₺ toplamı ve ödeme günü kuruyla $ karşılığı. */
+  ayTl: number;
+  ayUsd: number;
+};
+
+/**
+ * Dolar grafiğinin noktaları. Havaleler zaman grafiğindeki gibi aylara
+ * dağılır: peşinat 0. noktaya, taksit havalesi kapattığı taksite.
+ * Sabit kurlu çizgi `grafikNoktalari` kümülatifinin sabit kura bölümüdür;
+ * kapanan taksit ödenen tutarla durduğundan son ödemeye dek gerçekleşenle
+ * aynıdır, sonrası plandır.
+ */
+export function dolarNoktalari(noktalar: GrafikNoktasi[]) {
+  const sabitKur = usdKurlari[sabitKurTarihi];
+
+  const ayTl = new Map<number, number>();
+  const ayUsd = new Map<number, number>();
+  const eksikKur: string[] = [];
+  for (const o of odemeler) {
+    const i = o.tur === "pesinat" ? 0 : o.taksit;
+    const k = usdKuru(o.tarih);
+    if (k.eksik) eksikKur.push(o.tarih);
+    ayTl.set(i, (ayTl.get(i) ?? 0) + o.tutar);
+    ayUsd.set(i, (ayUsd.get(i) ?? 0) + o.tutar / k.kur);
+  }
+  const sonOdeme = Math.max(0, ...ayTl.keys());
+
+  let kum = 0;
+  const dolar: DolarNoktasi[] = noktalar.map((p) => {
+    kum += ayUsd.get(p.i) ?? 0;
+    return {
+      i: p.i,
+      sabit: p.kumulatif / sabitKur,
+      gercek: p.i <= sonOdeme ? kum : null,
+      ayTl: ayTl.get(p.i) ?? 0,
+      ayUsd: ayUsd.get(p.i) ?? 0,
+    };
+  });
+
+  const odenenUsd = dolar[sonOdeme].gercek ?? 0;
+  const odenenSabit = dolar[sonOdeme].sabit;
+
+  return {
+    noktalar: dolar,
+    sabitKur,
+    sonOdeme,
+    odenenUsd,
+    odenenSabit,
+    /** Ödeme günü kuru − sabit kur farkı; eksi = TL değer kaybetti. */
+    kurFarki: odenenUsd - odenenSabit,
+    planUsd: dolar[dolar.length - 1].sabit,
+    eksikKur,
+  };
 }
 
 /** Plan eğrisinin başladığı nokta — son gerçekleşen ödemenin indeksi. */
