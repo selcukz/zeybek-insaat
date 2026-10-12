@@ -7,9 +7,10 @@ import { bugunKonumu } from "./profil-grafik";
  * Dolar karşılığı — diagram-design çizgi grafiği, profil grafiğiyle aynı
  * ölçek ve ay ekseni.
  *
- * İki seri: (1) bütün ödemeler ve plan 18.08.2026 kuruyla — son ödemeye
+ * Üç seri: (1) bütün ödemeler ve plan 18.08.2026 kuruyla — son ödemeye
  * dek düz, sonrası kesik plan; (2) her havale kendi günündeki kurla
- * (odak, portakal). İkisi arasındaki açıklık kur farkıdır.
+ * (odak, portakal); (3) bu çizginin kesik devamı — kalan taksitler son
+ * ödenen ayın kuruyla tahmin. (1) ile (2) arasındaki açıklık kur farkıdır.
  */
 
 const INK = "#2d3142";
@@ -34,6 +35,7 @@ export default function DolarGrafik({
   noktalar,
   dolar,
   sonOdeme,
+  sonKurAy,
   bugun,
   aktif,
   onGezin,
@@ -42,6 +44,8 @@ export default function DolarGrafik({
   noktalar: GrafikNoktasi[];
   dolar: DolarNoktasi[];
   sonOdeme: number;
+  /** Tahmin kurunun ayı, ör. "Eylül 2026". */
+  sonKurAy: string;
   bugun: string;
   aktif: number | null;
   onGezin: (i: number | null) => void;
@@ -57,6 +61,7 @@ export default function DolarGrafik({
   const sabitGercek = dolar.slice(0, sonOdeme + 1);
   const sabitPlan = dolar.slice(sonOdeme);
   const gercek = dolar.filter((d) => d.gercek !== null);
+  const tahmin = dolar.filter((d) => d.tahmin !== null);
   const sonG = gercek[gercek.length - 1];
 
   const izgara = Array.from({ length: ust / ADIM_USD }, (_, k) => (k + 1) * ADIM_USD);
@@ -79,7 +84,9 @@ export default function DolarGrafik({
             sonG.sabit,
           )} $, ödeme günü kurlarıyla ${tr.format(
             sonG.gercek ?? 0,
-          )} $ ödendi; aynı kurla plan ${tr.format(dolar[son].sabit)} $ ile kapanır.`}
+          )} $ ödendi; aynı kurla plan ${tr.format(
+            dolar[son].sabit,
+          )} $ ile kapanır, ${sonKurAy} kuruyla tahmin ${tr.format(dolar[son].tahmin!)} $.`}
         </desc>
 
         <rect width={W} height={H} fill={PAPER} />
@@ -182,6 +189,28 @@ export default function DolarGrafik({
           {tr.format(dolar[son].sabit)} $
         </text>
 
+        {/* Tahmin — ödeme günü çizgisinin kesik devamı, son ödenen ayın kuru */}
+        <polyline
+          points={tahmin.map((d) => xy(d.i, d.tahmin!)).join(" ")}
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth={1.4}
+          strokeDasharray="5,4"
+          strokeLinejoin="round"
+        />
+        <text
+          className="dd-m"
+          // Plan etiketinin altına, kesik çizginin altında kalacak kadar
+          // aşağıda: iki çizgi sonda birkaç piksel ayrık ve yükseliyor.
+          x={SAG}
+          y={y(dolar[son].tahmin!) + 30}
+          fill={ACCENT}
+          fontSize={8}
+          textAnchor="end"
+        >
+          {tr.format(dolar[son].tahmin!)} $
+        </text>
+
         {/* Sabit kur — gerçekleşen, düz */}
         <polyline
           points={sabitGercek.map((d) => xy(d.i, d.sabit)).join(" ")}
@@ -278,27 +307,36 @@ export default function DolarGrafik({
           Ödenen · ödeme günü kuru
         </text>
 
-        <line x1={230} y1={456} x2={254} y2={456} stroke={INK} strokeWidth={1.4} />
-        <text className="dd-s" x={262} y={460} fill={MUTED} fontSize={8.5}>
+        <line
+          x1={210}
+          y1={456}
+          x2={234}
+          y2={456}
+          stroke={ACCENT}
+          strokeWidth={1.4}
+          strokeDasharray="5,4"
+        />
+        <text className="dd-s" x={242} y={460} fill={MUTED} fontSize={8.5}>
+          Tahmin · {sonKurAy} kuru
+        </text>
+
+        <line x1={400} y1={456} x2={424} y2={456} stroke={INK} strokeWidth={1.4} />
+        <text className="dd-s" x={432} y={460} fill={MUTED} fontSize={8.5}>
           Ödenen · 18.08.2026 kuru
         </text>
 
         <line
-          x1={420}
+          x1={590}
           y1={456}
-          x2={444}
+          x2={614}
           y2={456}
           stroke={INK}
           strokeOpacity={0.6}
           strokeWidth={1.2}
           strokeDasharray="5,4"
         />
-        <text className="dd-s" x={452} y={460} fill={MUTED} fontSize={8.5}>
+        <text className="dd-s" x={622} y={460} fill={MUTED} fontSize={8.5}>
           Plan · 18.08.2026 kuru
-        </text>
-
-        <text className="dd-m" x={SAG} y={460} fill={MUTED} fontSize={8} textAnchor="end">
-          TCMB USD DÖVİZ ALIŞ
         </text>
       </svg>
     </div>

@@ -472,6 +472,11 @@ export type DolarNoktasi = {
   sabit: number;
   /** Her havale kendi günündeki kurla; ödeme yoksa null. */
   gercek: number | null;
+  /**
+   * Tahmin: son ödemeye dek gerçekleşen, kalan taksitler son ödenen ayın
+   * kuruyla. Son ödemeden önceki aylarda null.
+   */
+  tahmin: number | null;
   /** O aya sayılan havalelerin ₺ toplamı ve ödeme günü kuruyla $ karşılığı. */
   ayTl: number;
   ayUsd: number;
@@ -499,13 +504,23 @@ export function dolarNoktalari(noktalar: GrafikNoktasi[]) {
   }
   const sonOdeme = Math.max(0, ...ayTl.keys());
 
+  /**
+   * Tahmin kuru: son ödenen ayın havalelerinin ağırlıklı kuru (₺ / $).
+   * Yeni ay ödenince tahmin kendiliğinden o ayın kuruna geçer.
+   */
+  const sonKur = ayTl.get(sonOdeme)! / ayUsd.get(sonOdeme)!;
+
   let kum = 0;
+  let tahmin = 0;
   const dolar: DolarNoktasi[] = noktalar.map((p) => {
     kum += ayUsd.get(p.i) ?? 0;
+    if (p.i === sonOdeme) tahmin = kum;
+    else if (p.i > sonOdeme) tahmin += p.beklenen / sonKur;
     return {
       i: p.i,
       sabit: p.kumulatif / sabitKur,
       gercek: p.i <= sonOdeme ? kum : null,
+      tahmin: p.i >= sonOdeme ? tahmin : null,
       ayTl: ayTl.get(p.i) ?? 0,
       ayUsd: ayUsd.get(p.i) ?? 0,
     };
@@ -523,6 +538,10 @@ export function dolarNoktalari(noktalar: GrafikNoktasi[]) {
     /** Ödeme günü kuru − sabit kur farkı; eksi = TL değer kaybetti. */
     kurFarki: odenenUsd - odenenSabit,
     planUsd: dolar[dolar.length - 1].sabit,
+    sonKur,
+    /** Tahmin kurunun ayı, ör. "Eylül 2026". */
+    sonKurAy: noktalar[sonOdeme].uzun,
+    tahminUsd: dolar[dolar.length - 1].tahmin!,
     eksikKur,
   };
 }
