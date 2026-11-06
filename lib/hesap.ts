@@ -154,6 +154,8 @@ export const usdKurlari: Record<string, number> = {
   "2026-09-02": 48.2075,
   "2026-09-03": 48.2238,
   "2026-10-02": 48.9699,
+  // TCMB değil: o gün fiilen dolar bozdurulan kur (bu seferlik).
+  "2026-11-06": 50.058,
 };
 
 /** Dolar grafiğinde planın ve sabit kurlu çizginin kuru — ilk peşinat günü. */
