@@ -127,7 +127,17 @@ export const odemeler: Odeme[] = [
     tur: "taksit",
     taksit: 1,
   },
-
+  {
+    // Ziraat'ten gönderildi. Ekim taksitine (vade 31.10) sayılır.
+    tarih: "2026-11-06",
+    tutar: 586_000,
+    alici: "Zeybek İnşaat",
+    banka: "Vakıfbank",
+    referans: "…26013958",
+    masraf: 209.38,
+    tur: "taksit",
+    taksit: 2,
+  },
 ];
 
 /**
