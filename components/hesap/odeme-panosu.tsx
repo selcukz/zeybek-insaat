@@ -57,6 +57,7 @@ export default function OdemePanosu({
   const aktifUsd = dolar.noktalar[aktifIndex ?? dolar.sonOdeme];
   const usd = (n: number) => `${lira(n)} $`;
   const kurYaz = (n: number) => n.toFixed(4).replace(".", ",");
+  const kur2 = (n: number) => n.toFixed(2).replace(".", ",");
 
   return (
     <>
@@ -266,7 +267,6 @@ export default function OdemePanosu({
               noktalar={noktalar}
               dolar={dolar.noktalar}
               sonOdeme={dolar.sonOdeme}
-              sonKurAy={dolar.sonKurAy}
               bugun={hesap.bugun}
               aktif={aktifIndex}
               onGezin={setUzerinde}
@@ -291,13 +291,18 @@ export default function OdemePanosu({
                 ad: "Bu ay · ₺",
                 d: lira(aktifUsd.ayTl || noktalar[aktifUsd.i].beklenen),
               },
+              aktifUsd.kurTahmin
+                ? {
+                    ad: "Bu ay · tahmin",
+                    d: usd(noktalar[aktifUsd.i].beklenen / aktifUsd.kur),
+                  }
+                : {
+                    ad: "Bu ay · ödeme günü",
+                    d: aktifUsd.ayTl ? usd(aktifUsd.ayUsd) : "—",
+                  },
               {
-                ad: "Bu ay · ödeme günü",
-                d: aktifUsd.ayTl ? usd(aktifUsd.ayUsd) : "—",
-              },
-              {
-                ad: "Ortalama kur",
-                d: aktifUsd.ayTl ? kurYaz(aktifUsd.ayTl / aktifUsd.ayUsd) : "—",
+                ad: aktifUsd.kurTahmin ? "Beklenen kur · vade" : "Ortalama kur",
+                d: aktifUsd.ayTl || aktifUsd.kurTahmin ? kurYaz(aktifUsd.kur) : "—",
               },
             ].map((r) => (
               <div key={r.ad} className="dd-satir">
@@ -324,7 +329,7 @@ export default function OdemePanosu({
               ...(aktifUsd.gercek === null
                 ? [
                     {
-                      ad: `Tahmin · ${dolar.sonKurAy.split(" ")[0]} kuru`,
+                      ad: "Tahmin · beklenen kur",
                       d: usd(aktifUsd.tahmin!),
                       c: ACCENT,
                     },
@@ -341,8 +346,11 @@ export default function OdemePanosu({
 
             <p style={{ fontSize: 12.5, lineHeight: 1.55, color: MUTED }}>
               Sabit kur {kurYaz(dolar.sabitKur)} (18.08.2026). Plan bu kurla{" "}
-              {usd(dolar.planUsd)} ile kapanır. {dolar.sonKurAy} taksitinin kuruyla (
-              {kurYaz(dolar.sonKur)}) tahmin {usd(dolar.tahminUsd)}.
+              {usd(dolar.planUsd)} ile kapanır. Tahmin kalan taksitleri vade
+              günündeki beklenen kurla çevirir ({dolar.tahminKaynak}:{" "}
+              {dolar.tahminNoktalari.map((n) => `${n.ad} ${kur2(n.kur)}`).join(", ")}
+              ; sonrası aynı hızla, {dolar.tahminSonAy} {kur2(dolar.tahminSonKur)}):{" "}
+              {usd(dolar.tahminUsd)}.
               {dolar.eksikKur.length > 0 &&
                 ` Kuru girilmemiş ödeme: ${dolar.eksikKur.map(tarihKisa).join(", ")}.`}
             </p>

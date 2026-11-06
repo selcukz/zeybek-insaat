@@ -9,8 +9,9 @@ import { bugunKonumu } from "./profil-grafik";
  *
  * Üç seri: (1) bütün ödemeler ve plan 18.08.2026 kuruyla — son ödemeye
  * dek düz, sonrası kesik plan; (2) her havale kendi günündeki kurla
- * (odak, portakal); (3) bu çizginin kesik devamı — kalan taksitler son
- * ödenen ayın kuruyla tahmin. (1) ile (2) arasındaki açıklık kur farkıdır.
+ * (odak, portakal); (3) bu çizginin kesik devamı — kalan taksitler vade
+ * günündeki beklenen kurla (TCMB anketi, `kurTahmini`) tahmin. (1) ile (2)
+ * arasındaki açıklık kur farkıdır.
  */
 
 const INK = "#2d3142";
@@ -35,7 +36,6 @@ export default function DolarGrafik({
   noktalar,
   dolar,
   sonOdeme,
-  sonKurAy,
   bugun,
   aktif,
   onGezin,
@@ -44,8 +44,6 @@ export default function DolarGrafik({
   noktalar: GrafikNoktasi[];
   dolar: DolarNoktasi[];
   sonOdeme: number;
-  /** Tahmin kurunun ayı, ör. "Eylül 2026". */
-  sonKurAy: string;
   bugun: string;
   aktif: number | null;
   onGezin: (i: number | null) => void;
@@ -86,7 +84,7 @@ export default function DolarGrafik({
             sonG.gercek ?? 0,
           )} $ ödendi; aynı kurla plan ${tr.format(
             dolar[son].sabit,
-          )} $ ile kapanır, ${sonKurAy} kuruyla tahmin ${tr.format(dolar[son].tahmin!)} $.`}
+          )} $ ile kapanır, beklenen kurla tahmin ${tr.format(dolar[son].tahmin!)} $.`}
         </desc>
 
         <rect width={W} height={H} fill={PAPER} />
@@ -189,7 +187,7 @@ export default function DolarGrafik({
           {tr.format(dolar[son].sabit)} $
         </text>
 
-        {/* Tahmin — ödeme günü çizgisinin kesik devamı, son ödenen ayın kuru */}
+        {/* Tahmin — ödeme günü çizgisinin kesik devamı, beklenen kurla */}
         <polyline
           points={tahmin.map((d) => xy(d.i, d.tahmin!)).join(" ")}
           fill="none"
@@ -317,7 +315,7 @@ export default function DolarGrafik({
           strokeDasharray="5,4"
         />
         <text className="dd-s" x={242} y={460} fill={MUTED} fontSize={8.5}>
-          Tahmin · {sonKurAy} kuru
+          Tahmin · beklenen kur
         </text>
 
         <line x1={400} y1={456} x2={424} y2={456} stroke={INK} strokeWidth={1.4} />
