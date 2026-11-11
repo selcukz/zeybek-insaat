@@ -244,23 +244,23 @@ export const usdKurlari: Record<string, number> = {
 export const sabitKurTarihi = sozlesme.baslangic;
 
 /**
- * Gelecek USD/TRY kuru — TCMB Piyasa Katılımcıları Anketi (Ekim 2026)
+ * Gelecek USD/TRY kuru — TCMB Piyasa Katılımcıları Anketi (Kasım 2026)
  * medyan beklentileri. Ödenmemiş taksitler vade günündeki tahmini kurla
  * dolara çevrilir.
  *
  * Eğri `usdKurlari`ndaki son gerçek kurdan başlar ve noktalar arasında
  * sabit aylık yüzdeyle yürür. Son noktadan sonra (Şubat 2028'e dek) son
  * aralığın hızıyla sürer. Anket ayın ortasında toplandığından "12 ay
- * sonrası" Ekim 2027 ortasına konur.
+ * sonrası" Kasım 2027 ortasına konur.
  *
  * YENİ ANKET YAYIMLANINCA (her ay, tcmb.gov.tr) `kaynak` ve `noktalar`
  * güncellenir: cari yıl sonu ve 12 ay sonrası USD/TRY beklentisi.
  */
 export const kurTahmini = {
-  kaynak: "TCMB Piyasa Katılımcıları Anketi · Ekim 2026",
+  kaynak: "TCMB Piyasa Katılımcıları Anketi · Kasım 2026",
   noktalar: [
-    { tarih: "2026-12-31", kur: 51.55, ad: "2026 sonu" },
-    { tarih: "2027-10-15", kur: 59.26, ad: "Ekim 2027" },
+    { tarih: "2026-12-31", kur: 53.2, ad: "2026 sonu" },
+    { tarih: "2027-11-15", kur: 62.8, ad: "Kasım 2027" },
   ],
 } as const;
 
@@ -723,7 +723,7 @@ export function dolarNoktalari(noktalar: GrafikNoktasi[]) {
     planUsd: dolar[dolar.length - 1].sabit,
     tahminUsd: dolar[dolar.length - 1].tahmin!,
     tahminKaynak: kurTahmini.kaynak,
-    /** Tahmin eğrisinin dayandığı beklentiler, ör. "2026 sonu 51,55". */
+    /** Tahmin eğrisinin dayandığı beklentiler, ör. "2026 sonu 53,20". */
     tahminNoktalari: kurTahmini.noktalar,
     /** Son taksit vadesindeki tahmini kur ve ayı. */
     tahminSonKur: dolar[dolar.length - 1].kur,
