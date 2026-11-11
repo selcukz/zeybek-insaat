@@ -59,7 +59,38 @@ export type Odeme = OdemeOrtak &
         /** Kapattığı taksitin sırası (1 = Eylül 2026). */
         taksit: number;
       }
+    | {
+        tur: "taksit";
+        /**
+         * Tek havale birden fazla taksit kapatıyorsa, her taksit ve ona
+         * düşen tutar. Payların toplamı `tutar`a eşit olmalıdır.
+         *
+         * Bir havale iki satıra bölünmez: tablodaki dekont sayısı ve
+         * masraf, fiilen yapılan havale sayısını göstermelidir.
+         */
+        taksitler: { sira: number; tutar: number }[];
+      }
   );
+
+/**
+ * Bir havalenin kapattığı taksitler, (sıra, tutar) çiftleri olarak.
+ * Tek taksitli havale de aynı biçime indirgenir; çağıran taraf iki
+ * gösterimi ayırt etmek zorunda kalmaz.
+ */
+export function taksitPaylari(o: Odeme): { sira: number; tutar: number }[] {
+  if (o.tur !== "taksit") return [];
+  if (!("taksitler" in o)) return [{ sira: o.taksit, tutar: o.tutar }];
+
+  // Paylar havale tutarını tüketmezse pano parayı yanlış gösterir;
+  // sessizce yuvarlamak yerine girişin düzeltilmesi gerekir.
+  const toplam = o.taksitler.reduce((t, p) => t + p.tutar, 0);
+  if (Math.round((toplam - o.tutar) * 100) !== 0) {
+    throw new Error(
+      `${o.tarih} havalesinde taksit payları ${toplam} ≠ havale tutarı ${o.tutar}`,
+    );
+  }
+  return o.taksitler;
+}
 
 export const odemeler: Odeme[] = [
   {
@@ -310,8 +341,8 @@ export function hesapla(bugun: Date) {
    */
   const kapanan = new Map<number, number>();
   for (const o of odemeler) {
-    if (o.tur === "taksit") {
-      kapanan.set(o.taksit, (kapanan.get(o.taksit) ?? 0) + o.tutar);
+    for (const { sira, tutar } of taksitPaylari(o)) {
+      kapanan.set(sira, (kapanan.get(sira) ?? 0) + tutar);
     }
   }
   const kapananToplam = [...kapanan.values()].reduce((t, v) => t + v, 0);
@@ -562,11 +593,18 @@ export function dolarNoktalari(noktalar: GrafikNoktasi[]) {
   const ayUsd = new Map<number, number>();
   const eksikKur: string[] = [];
   for (const o of odemeler) {
-    const i = o.tur === "pesinat" ? 0 : o.taksit;
     const k = usdKuru(o.tarih);
     if (k.eksik) eksikKur.push(o.tarih);
-    ayTl.set(i, (ayTl.get(i) ?? 0) + o.tutar);
-    ayUsd.set(i, (ayUsd.get(i) ?? 0) + o.tutar / k.kur);
+    // Peşinat 0. noktaya; taksit havalesi kapattığı taksit(ler)e, bir
+    // havale birden fazla taksit kapatıyorsa payları ayrı ayrı düşer.
+    const paylar =
+      o.tur === "pesinat"
+        ? [{ sira: 0, tutar: o.tutar }]
+        : taksitPaylari(o);
+    for (const { sira, tutar } of paylar) {
+      ayTl.set(sira, (ayTl.get(sira) ?? 0) + tutar);
+      ayUsd.set(sira, (ayUsd.get(sira) ?? 0) + tutar / k.kur);
+    }
   }
   const sonOdeme = Math.max(0, ...ayTl.keys());
 
