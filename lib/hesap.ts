@@ -10,7 +10,15 @@
  *
  * TAKSİT ÖDEMESİ: `taksit` alanına kapattığı taksitin sırası yazılır.
  * O ay için ne ödendiyse taksit o tutarla kapanır (eksik ya da fazla);
- * kalan borç açık taksitlere eşit bölünür.
+ * kalan borç açık taksitlere eşit bölünür. Tek havale birden fazla
+ * taksit kapatıyorsa `taksit` yerine `taksitler: [{ sira, tutar }]`
+ * yazılır; payların toplamı havale tutarına eşit olmalıdır.
+ *
+ * DEKONT GELMEDİYSE: `dekontBekleniyor: true` konur, alıcı/banka/
+ * referans boş bırakılır — uydurulmaz. Tutar ve kur bilindiği için
+ * pano doğru hesaplar, tabloda satır "dekont bekleniyor" görünür.
+ * Dekont gelince alanlar doldurulur, tarih dekonttakiyle değiştirilir
+ * ve bu işaret kaldırılır.
  *
  * DOLAR KARŞILIĞI: her yeni ödemenin günündeki TCMB USD döviz alış
  * kuru `usdKurlari`na eklenir; eksikse dolar grafiği notta uyarır.
@@ -43,12 +51,32 @@ type OdemeOrtak = {
   /** ISO tarih — dekonttaki işlem tarihi. */
   tarih: string;
   tutar: number;
+  /** EFT masrafı — bedele mahsup edilmez. */
+  masraf?: number;
+} & (OdemeBelgeli | OdemeBekleyen);
+
+/** Dekontu elde olan havale — normal hâl. */
+type OdemeBelgeli = {
+  dekontBekleniyor?: false;
   alici: string;
   banka: string;
   /** Dekonttaki mesaj referansının son hanesi. Tam numara paylaşılmaz. */
   referans: string;
-  /** EFT masrafı — bedele mahsup edilmez. */
-  masraf?: number;
+};
+
+/**
+ * Para gönderildi ama dekont henüz elde değil.
+ *
+ * Tutar, tarih ve kur biliniyorsa pano doğru hesaplasın diye kayıt
+ * şimdi girilir; alıcı, banka ve referans uydurulmaz, boş bırakılır ve
+ * tabloda "dekont bekleniyor" olarak görünür. Dekont gelince alanlar
+ * doldurulup bu işaret kaldırılır.
+ */
+type OdemeBekleyen = {
+  dekontBekleniyor: true;
+  alici?: string;
+  banka?: string;
+  referans?: string;
 };
 
 export type Odeme = OdemeOrtak &
@@ -171,6 +199,24 @@ export const odemeler: Odeme[] = [
     tur: "taksit",
     taksit: 2,
   },
+  {
+    // Müteahhidin nakit ihtiyacı üzerine erken ödenen 1.000.000 ₺;
+    // 3. (Kasım) ve 4. (Aralık) taksitleri kapatır, sonraki ödeme
+    // 31.01.2027 vadeli 5. taksit.
+    //
+    // DEKONT HENÜZ ELDE DEĞİL. Tarih geçicidir: kaydın girildiği gün
+    // alınmıştır, dekonttaki işlem tarihiyle değiştirilecek. Alıcı,
+    // banka ve referans dekont gelince doldurulup `dekontBekleniyor`
+    // kaldırılacak; masraf varsa o zaman eklenecek.
+    tarih: "2026-11-11",
+    tutar: 1_000_000,
+    dekontBekleniyor: true,
+    tur: "taksit",
+    taksitler: [
+      { sira: 3, tutar: 500_000 },
+      { sira: 4, tutar: 500_000 },
+    ],
+  },
 ];
 
 /**
@@ -189,6 +235,9 @@ export const usdKurlari: Record<string, number> = {
   "2026-10-02": 48.9699,
   // TCMB değil: o gün fiilen dolar bozdurulan kur (bu seferlik).
   "2026-11-06": 50.058,
+  // Kullanıcıdan alındı. TCMB alış mı, fiilen bozdurulan kur mu
+  // teyit edilmedi; dekont gelince hangisi olduğu netleşecek.
+  "2026-11-11": 50.45,
 };
 
 /** Dolar grafiğinde planın ve sabit kurlu çizginin kuru — ilk peşinat günü. */
