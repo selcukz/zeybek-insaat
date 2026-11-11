@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import OdemePanosu from "@/components/hesap/odeme-panosu";
 import { cikisYap } from "./giris/actions";
-import { hesapla, odemeler, sozlesme, tarihKisa } from "@/lib/hesap";
+import { hesapla, odemeler, panoTarihi, sozlesme, tarihKisa } from "@/lib/hesap";
 
 export const metadata: Metadata = {
   title: "Ödeme Takibi · Zeybek İnşaat",
@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default function HesapSayfasi() {
-  const hesap = hesapla(new Date());
+  // Pano, kapanan son taksitin vadesini bugün sayar (bkz. panoTarihi):
+  // peşin kapatılan aylar yüzünden gerçekleşen eğri takvim gününü aşıyor.
+  const hesap = hesapla(panoTarihi(new Date()));
   const sonOdeme = odemeler[odemeler.length - 1];
 
   return (

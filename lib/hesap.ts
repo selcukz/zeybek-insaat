@@ -352,6 +352,33 @@ export type Taksit = {
 export type Hesap = ReturnType<typeof hesapla>;
 
 /**
+ * Panonun "bugün"ü — takvim günü değil, ödemelerin ulaştığı gün.
+ *
+ * Taksitler peşin kapatıldığında (örn. tek havale Kasım ve Aralık'ı
+ * birden kapatıyor) gerçekleşen eğri takvim gününün ilerisine geçer ve
+ * grafik kendi içinde tutarsız görünür: dolu çizgi "bugün" işaretini
+ * aşar. Bu yüzden pano, kapanan son taksitin vadesini bugün sayar.
+ *
+ * Takvim o vadeyi geçtiğinde kendiliğinden gerçek güne döner; sabit
+ * bir tarih gömülmediği için geciken taksit tespiti çalışmaya devam
+ * eder ve ileride yeni peşin ödeme yapılırsa işaret kendiliğinden
+ * yine ileri kayar.
+ */
+export function panoTarihi(gercekBugun: Date): Date {
+  const kapali = odemeler.flatMap(taksitPaylari).map((p) => p.sira);
+  if (kapali.length === 0) return gercekBugun;
+
+  const bas = new Date(sozlesme.baslangic + "T00:00:00");
+  // i. taksitin vadesi: başlangıç ayı + i, o ayın son günü.
+  const vade = new Date(
+    bas.getFullYear(),
+    bas.getMonth() + Math.max(...kapali) + 1,
+    0,
+  );
+  return vade > gercekBugun ? vade : gercekBugun;
+}
+
+/**
  * Bütün türetilmiş sayılar. `bugun` dışarıdan verilir ki sunucu ve
  * istemci aynı sonucu üretsin.
  */
