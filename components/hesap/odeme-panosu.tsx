@@ -413,24 +413,34 @@ export default function OdemePanosu({
               </tr>
             </thead>
             <tbody>
-              {odemeler.map((o) => (
-                <tr key={o.referans}>
+              {odemeler.map((o, i) => (
+                /* Dekont bekleyen havalede referans yok; anahtar tarih
+                   ve sıradan türetilir. */
+                <tr key={o.referans ?? `${o.tarih}-${i}`}>
                   <td style={{ fontSize: 13, color: "var(--gri-2)" }}>
                     {tarihKisa(o.tarih)}
                   </td>
                   <td>
-                    <span style={{ fontSize: 14 }}>{o.alici}</span>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        color: o.alici ? undefined : "var(--gri)",
+                      }}
+                    >
+                      {o.alici ?? "Alıcı — dekont bekleniyor"}
+                    </span>
                     <span
                       className="minik"
                       style={{ display: "block", marginTop: 4 }}
                     >
-                      {o.banka} · {o.tur === "pesinat" ? "peşinat" : "taksit"}
+                      {o.banka ? `${o.banka} · ` : ""}
+                      {o.tur === "pesinat" ? "peşinat" : "taksit"}
                     </span>
                   </td>
                   <td className="num sag" style={{ fontSize: 16 }}>
                     {lira(o.tutar)}
                   </td>
-                  <td className="sag minik">{o.referans}</td>
+                  <td className="sag minik">{o.referans ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
