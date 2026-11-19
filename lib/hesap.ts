@@ -202,15 +202,13 @@ export const odemeler: Odeme[] = [
   {
     // Müteahhidin nakit ihtiyacı üzerine erken ödenen 1.000.000 ₺;
     // 3. (Kasım) ve 4. (Aralık) taksitleri kapatır, sonraki ödeme
-    // 31.01.2027 vadeli 5. taksit.
-    //
-    // DEKONT HENÜZ ELDE DEĞİL. Tarih geçicidir: kaydın girildiği gün
-    // alınmıştır, dekonttaki işlem tarihiyle değiştirilecek. Alıcı,
-    // banka ve referans dekont gelince doldurulup `dekontBekleniyor`
-    // kaldırılacak; masraf varsa o zaman eklenecek.
-    tarih: "2026-11-11",
+    // 31.01.2027 vadeli 5. taksit. Ziraat Mobil'den gönderildi.
+    tarih: "2026-11-19",
     tutar: 1_000_000,
-    dekontBekleniyor: true,
+    alici: "Zeybek İnşaat",
+    banka: "Vakıfbank",
+    referans: "…26014359",
+    masraf: 209.38,
     tur: "taksit",
     taksitler: [
       { sira: 3, tutar: 500_000 },
@@ -235,9 +233,10 @@ export const usdKurlari: Record<string, number> = {
   "2026-10-02": 48.9699,
   // TCMB değil: o gün fiilen dolar bozdurulan kur (bu seferlik).
   "2026-11-06": 50.058,
-  // Kullanıcıdan alındı. TCMB alış mı, fiilen bozdurulan kur mu
-  // teyit edilmedi; dekont gelince hangisi olduğu netleşecek.
-  "2026-11-11": 50.45,
+  // Kullanıcıdan alındı (kayıt 11.11'de dekontsuz girilirken).
+  // TCMB alış mı, fiilen bozdurulan kur mu teyit edilmedi; TL
+  // dekontunda kur yok. Dekonttaki işlem gününe (19.11) taşındı.
+  "2026-11-19": 50.45,
 };
 
 /** Dolar grafiğinde planın ve sabit kurlu çizginin kuru — ilk peşinat günü. */
