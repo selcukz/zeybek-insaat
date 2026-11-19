@@ -233,10 +233,8 @@ export const usdKurlari: Record<string, number> = {
   "2026-10-02": 48.9699,
   // TCMB değil: o gün fiilen dolar bozdurulan kur (bu seferlik).
   "2026-11-06": 50.058,
-  // Kullanıcıdan alındı (kayıt 11.11'de dekontsuz girilirken).
-  // TCMB alış mı, fiilen bozdurulan kur mu teyit edilmedi; TL
-  // dekontunda kur yok. Dekonttaki işlem gününe (19.11) taşındı.
-  "2026-11-19": 50.45,
+  // TCMB değil: o gün fiilen dolar bozdurulan kur (kullanıcı teyidi).
+  "2026-11-19": 50.525,
 };
 
 /** Dolar grafiğinde planın ve sabit kurlu çizginin kuru — ilk peşinat günü. */
